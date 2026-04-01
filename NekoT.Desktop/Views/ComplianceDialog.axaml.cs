@@ -1,8 +1,5 @@
-using System;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using NekoT.Desktop.Services;
 using NekoT.Desktop.Utilities;
 
 namespace NekoT.Desktop.Views;
