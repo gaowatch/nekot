@@ -16,18 +16,13 @@ public sealed class SingleInstanceManager : IDisposable
     public SingleInstanceManager(string mutexName)
     {
         if (string.IsNullOrWhiteSpace(mutexName))
-        {
             throw new ArgumentException("Mutex name cannot be null or empty", nameof(mutexName));
-        }
 
         _mutexName = mutexName;
         _mutex = new Mutex(true, _mutexName, out _isFirstInstance);
     }
 
-    internal Mutex? GetMutexForAbandonmentTest()
-    {
-        return _mutex;
-    }
+    internal Mutex? GetMutexForAbandonmentTest() => _mutex;
 
     public void Dispose()
     {
@@ -36,26 +31,15 @@ public sealed class SingleInstanceManager : IDisposable
 
         if (_isFirstInstance && _mutex != null)
         {
-            try
-            {
-                _mutex.ReleaseMutex();
-            }
-            catch (ApplicationException)
-            {
-            }
-            finally
-            {
-                _mutex.Dispose();
-            }
+            try { _mutex.ReleaseMutex(); }
+            catch (ApplicationException) { }
+            finally { _mutex.Dispose(); }
         }
 
         GC.SuppressFinalize(this);
     }
 
-    ~SingleInstanceManager()
-    {
-        Dispose();
-    }
+    ~SingleInstanceManager() => Dispose();
 }
 
 public class SingleInstanceCheckResult
@@ -81,8 +65,5 @@ public static class SingleInstanceGuard
         };
     }
 
-    public static SingleInstanceManager CreateManager()
-    {
-        return new SingleInstanceManager(AppMutexName);
-    }
+    public static SingleInstanceManager CreateManager() => new SingleInstanceManager(AppMutexName);
 }

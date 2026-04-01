@@ -1,55 +1,98 @@
 using System;
-using System.Drawing;
-using System.IO;
-using System.Reflection;
+using System.Runtime.InteropServices;
+using Avalonia.Controls;
 
 namespace NekoT.Desktop.Utilities;
 
 public static class WindowIconHelper
 {
-    private static Icon? _cachedIcon;
-    private static readonly object _lock = new();
+    #region Windows API Constants
 
-    public static Icon? GetApplicationIcon()
+    private const int GWL_EXSTYLE = -20;
+    private const int WS_EX_DLGMODALFRAME = 0x0001;
+    private const uint SWP_NOSIZE = 0x0001;
+    private const uint SWP_NOMOVE = 0x0002;
+    private const uint SWP_NOZORDER = 0x0004;
+    private const uint SWP_FRAMECHANGED = 0x0020;
+    private const uint WM_SETICON = 0x0080;
+
+    #endregion
+
+    #region Windows API Imports
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter,
+        int x, int y, int width, int height, uint uFlags);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SendMessage(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    #endregion
+
+    public static void RemoveIcon(Window window)
     {
-        lock (_lock)
+        if (window == null)
+            throw new ArgumentNullException(nameof(window));
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        window.Opened += (sender, e) =>
         {
-            if (_cachedIcon != null)
-                return _cachedIcon;
-
-            try
-            {
-                var assembly = Assembly.GetEntryAssembly();
-                if (assembly != null)
-                {
-                    var iconName = $"{assembly.GetName().Name}.ico";
-                    var iconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, iconName);
-
-                    if (File.Exists(iconPath))
-                    {
-                        _cachedIcon = new Icon(iconPath);
-                        return _cachedIcon;
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"Failed to load icon: {ex.Message}");
-            }
-
-            return null;
-        }
+            try { RemoveIconInternal(window); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Remove icon failed: {ex.Message}"); }
+        };
     }
 
-    public static void DisposeCachedIcon()
+    private static void RemoveIconInternal(Window window)
     {
-        lock (_lock)
+        var handle = window.TryGetPlatformHandle()?.Handle;
+        if (handle == null || handle == IntPtr.Zero) return;
+
+        IntPtr hwnd = handle.Value;
+        int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+        if (extendedStyle == 0) return;
+
+        int newStyle = extendedStyle | WS_EX_DLGMODALFRAME;
+        int result = SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
+        if (result == 0) return;
+
+        SendMessage(hwnd, WM_SETICON, IntPtr.Zero, IntPtr.Zero);
+        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+    }
+
+    public static void RestoreIcon(Window window)
+    {
+        if (window == null)
+            throw new ArgumentNullException(nameof(window));
+
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            return;
+
+        window.Opened += (sender, e) =>
         {
-            if (_cachedIcon != null)
-            {
-                _cachedIcon.Dispose();
-                _cachedIcon = null;
-            }
-        }
+            try { RestoreIconInternal(window); }
+            catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Restore icon failed: {ex.Message}"); }
+        };
+    }
+
+    private static void RestoreIconInternal(Window window)
+    {
+        var handle = window.TryGetPlatformHandle()?.Handle;
+        if (handle == null || handle == IntPtr.Zero) return;
+
+        IntPtr hwnd = handle.Value;
+        int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+        if (extendedStyle == 0) return;
+
+        int newStyle = extendedStyle & ~WS_EX_DLGMODALFRAME;
+        SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
+        SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     }
 }
