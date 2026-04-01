@@ -8,87 +8,66 @@ namespace NekoT.Core.Storage;
 public class AtomicFileEngine : IAtomicFileEngine
 {
     private readonly string _filePath;
-    private readonly string _backupPath;
-    private readonly string _tempPath;
-    private readonly object _lock = new();
+    private readonly JsonSerializerOptions _jsonOptions;
 
     public AtomicFileEngine(string filePath)
     {
-        _filePath = filePath ?? throw new ArgumentNullException(nameof(filePath));
-        _backupPath = filePath + ".bak";
-        _tempPath = filePath + ".tmp";
-    }
-
-    public async Task<bool> WriteAsync<T>(T data, CancellationToken ct = default)
-    {
-        return await Task.Run(() =>
+        _filePath = filePath;
+        _jsonOptions = new JsonSerializerOptions
         {
-            lock (_lock)
-            {
-                try
-                {
-                    if (File.Exists(_filePath))
-                        File.Copy(_filePath, _backupPath, overwrite: true);
-
-                    var json = JsonSerializer.Serialize(data);
-                    File.WriteAllText(_tempPath, json);
-
-                    if (File.Exists(_filePath))
-                        File.Replace(_tempPath, _filePath, _backupPath);
-                    else
-                        File.Move(_tempPath, _filePath);
-
-                    return true;
-                }
-                catch
-                {
-                    return false;
-                }
-            }
-        }, ct);
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
     }
 
-    public async Task<T?> ReadAsync<T>(CancellationToken ct = default)
+    public async Task<T?> ReadAsync<T>() where T : class
     {
-        TryDeleteFile(_tempPath);
-
-        var result = await TryReadFileAsync<T>(_filePath, ct);
-        if (result != null) return result;
-
-        result = await TryReadFileAsync<T>(_backupPath, ct);
-        return result;
-    }
-
-    public Task<bool> ExistsAsync()
-    {
-        return Task.FromResult(File.Exists(_filePath) || File.Exists(_backupPath));
-    }
-
-    private async Task<T?> TryReadFileAsync<T>(string path, CancellationToken ct)
-    {
-        if (!File.Exists(path)) return default;
+        if (!File.Exists(_filePath))
+        {
+            return null;
+        }
 
         try
         {
-            var json = await File.ReadAllTextAsync(path, ct);
-            return JsonSerializer.Deserialize<T>(json);
+            var json = await File.ReadAllTextAsync(_filePath);
+            return JsonSerializer.Deserialize<T>(json, _jsonOptions);
         }
-        catch
+        catch (Exception ex)
         {
-            return default;
+            System.Diagnostics.Debug.WriteLine($"[AtomicFileEngine] Read failed: {ex.Message}");
+            return null;
         }
     }
 
-    private static void TryDeleteFile(string path)
+    public async Task WriteAsync<T>(T data) where T : class
     {
-        try { if (File.Exists(path)) File.Delete(path); }
-        catch { }
-    }
-}
+        try
+        {
+            var directory = Path.GetDirectoryName(_filePath);
+            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
 
-public interface IAtomicFileEngine
-{
-    Task<bool> WriteAsync<T>(T data, CancellationToken ct = default);
-    Task<T?> ReadAsync<T>(CancellationToken ct = default);
-    Task<bool> ExistsAsync();
+            var tempFile = _filePath + $".{Guid.NewGuid():N}.tmp";
+            var json = JsonSerializer.Serialize(data, _jsonOptions);
+            await File.WriteAllTextAsync(tempFile, json);
+
+            if (File.Exists(_filePath))
+            {
+                File.Delete(_filePath);
+            }
+
+            File.Move(tempFile, _filePath);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AtomicFileEngine] Write failed: {ex.Message}");
+        }
+    }
+
+    public bool Exists()
+    {
+        return File.Exists(_filePath);
+    }
 }

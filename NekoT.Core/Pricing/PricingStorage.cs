@@ -1,181 +1,77 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using NekoT.Core.Security;
+using System.Threading.Tasks;
 
 namespace NekoT.Core.Pricing;
 
 public class PricingStorage
 {
-    private static PricingStorage? _instance;
-    private static readonly object _lock = new();
-    private readonly string _storagePath;
-    private readonly Dictionary<string, ModelPricing> _pricingCache;
-    private readonly Dictionary<string, List<UsageCost>> _usageHistory;
+    private readonly string _storageFile;
+    private readonly JsonSerializerOptions _jsonOptions;
 
-    public static PricingStorage Instance
+    public PricingStorage()
     {
-        get
+        var appDataPath = GetAppDataPath();
+        _storageFile = Path.Combine(appDataPath, "pricing_data.json");
+        _jsonOptions = new JsonSerializerOptions
         {
-            if (_instance == null)
-            {
-                lock (_lock)
-                {
-                    _instance ??= new PricingStorage();
-                }
-            }
-            return _instance;
-        }
-    }
-
-    private PricingStorage()
-    {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var nekoTPath = Path.Combine(appDataPath, "NekoT");
-        Directory.CreateDirectory(nekoTPath);
-        _storagePath = Path.Combine(nekoTPath, "pricing");
-        Directory.CreateDirectory(_storagePath);
-        
-        _pricingCache = new Dictionary<string, ModelPricing>();
-        _usageHistory = new Dictionary<string, List<UsageCost>>();
-        
-        LoadAllPricing();
-    }
-
-    public void SaveModelPricing(string modelId, ModelPricing pricing)
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-            return;
-
-        _pricingCache[modelId] = pricing;
-        
-        var filePath = Path.Combine(_storagePath, $"pricing_{SanitizeFileName(modelId)}.json");
-        var json = JsonSerializer.Serialize(pricing, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
-    }
-
-    public ModelPricing? GetModelPricing(string modelId)
-    {
-        if (string.IsNullOrWhiteSpace(modelId))
-            return null;
-
-        if (_pricingCache.TryGetValue(modelId, out var pricing))
-            return pricing;
-
-        var loaded = LoadPricingFromFile(modelId);
-        if (loaded != null)
-        {
-            _pricingCache[modelId] = loaded;
-            return loaded;
-        }
-
-        return ModelPricing.GetDefaultPricing(modelId);
-    }
-
-    public void SaveUsageCost(string serviceType, UsageCost usage)
-    {
-        var key = $"{serviceType}_{DateTime.Now:yyyy-MM-dd}";
-        
-        if (!_usageHistory.ContainsKey(key))
-            _usageHistory[key] = new List<UsageCost>();
-        
-        _usageHistory[key].Add(usage);
-        
-        var filePath = Path.Combine(_storagePath, $"usage_{key}.json");
-        var json = JsonSerializer.Serialize(_usageHistory[key], new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(filePath, json, System.Text.Encoding.UTF8);
-    }
-
-    public List<UsageCost> GetDailyUsage(string serviceType, DateTime date)
-    {
-        var key = $"{serviceType}_{date:yyyy-MM-dd}";
-        
-        if (_usageHistory.TryGetValue(key, out var usage))
-            return usage;
-        
-        var filePath = Path.Combine(_storagePath, $"usage_{key}.json");
-        if (File.Exists(filePath))
-        {
-            var json = File.ReadAllText(filePath);
-            var loaded = JsonSerializer.Deserialize<List<UsageCost>>(json);
-            if (loaded != null)
-            {
-                _usageHistory[key] = loaded;
-                return loaded;
-            }
-        }
-        
-        return new List<UsageCost>();
-    }
-
-    public DailyCostSummary GetDailySummary(string serviceType, DateTime date)
-    {
-        var usage = GetDailyUsage(serviceType, date);
-        
-        return new DailyCostSummary
-        {
-            Date = date,
-            TotalCost = usage.Sum(u => u.TotalCost),
-            TotalInputTokens = usage.Sum(u => u.InputTokens),
-            TotalOutputTokens = usage.Sum(u => u.OutputTokens),
-            RequestCount = usage.Count,
-            Currency = usage.FirstOrDefault()?.Currency ?? "USD"
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
         };
     }
 
-    private void LoadAllPricing()
+    private static string GetAppDataPath()
+    {
+        var appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        var path = Path.Combine(appData, "NekoT");
+        if (!Directory.Exists(path))
+        {
+            Directory.CreateDirectory(path);
+        }
+        return path;
+    }
+
+    public async Task SavePricingDataAsync(Dictionary<string, ProviderPricing> pricing)
     {
         try
         {
-            var files = Directory.GetFiles(_storagePath, "pricing_*.json");
-            foreach (var file in files)
-            {
-                try
-                {
-                    var json = File.ReadAllText(file);
-                    var pricing = JsonSerializer.Deserialize<ModelPricing>(json);
-                    if (pricing != null && !string.IsNullOrEmpty(pricing.ModelId))
-                    {
-                        _pricingCache[pricing.ModelId] = pricing;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[PricingStorage] Failed to load pricing file {file}: {ex.Message}");
-                }
-            }
+            var json = JsonSerializer.Serialize(pricing, _jsonOptions);
+            await File.WriteAllTextAsync(_storageFile, json);
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[PricingStorage] Failed to load pricing files: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[PricingStorage] Save failed: {ex.Message}");
         }
     }
 
-    private ModelPricing? LoadPricingFromFile(string modelId)
+    public async Task<Dictionary<string, ProviderPricing>?> LoadPricingDataAsync()
     {
-        var filePath = Path.Combine(_storagePath, $"pricing_{SanitizeFileName(modelId)}.json");
-        if (File.Exists(filePath))
+        try
         {
-            try
+            if (!File.Exists(_storageFile))
             {
-                var json = File.ReadAllText(filePath);
-                return JsonSerializer.Deserialize<ModelPricing>(json);
+                return null;
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[PricingStorage] Failed to load pricing for {modelId}: {ex.Message}");
-            }
-        }
-        return null;
-    }
 
-    private static string SanitizeFileName(string fileName)
-    {
-        foreach (var c in Path.GetInvalidFileNameChars())
-        {
-            fileName = fileName.Replace(c, '_');
+            var json = await File.ReadAllTextAsync(_storageFile);
+            return JsonSerializer.Deserialize<Dictionary<string, ProviderPricing>>(json, _jsonOptions);
         }
-        return fileName;
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PricingStorage] Load failed: {ex.Message}");
+            return null;
+        }
     }
+}
+
+public class ProviderPricing
+{
+    public string ProviderName { get; set; } = string.Empty;
+    public string ModelName { get; set; } = string.Empty;
+    public decimal InputPricePer1M { get; set; }
+    public decimal OutputPricePer1M { get; set; }
+    public DateTime LastUpdated { get; set; }
 }
