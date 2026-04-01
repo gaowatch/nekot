@@ -653,7 +653,7 @@ public class WebView2NetworkMonitor : INetworkMonitor, IDisposable
                 var requestId = idElem.GetString();
                 var url = urlElem.GetString();
 
-                Logger.LogInfo(LogCategory, $"WebSocket: URL: {url}, isLlm: {TokenExtractor.IsLlmApiRequest(url ?? "")}");
+                Logger.LogInfo(LogCategory, $"WebSocket: URL: {url}, isLlm: {TokenExtractor.IsLlmApiRequest(url ?? \"\")}");
 
                 if (!string.IsNullOrEmpty(url) && TokenExtractor.IsLlmApiRequest(url))
                 {

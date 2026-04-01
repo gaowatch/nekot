@@ -24,6 +24,8 @@ public class WebView2Control : NativeControlHost
     private static readonly SemaphoreSlim _environmentInitLock = new(1, 1);
     private static int _environmentInitCount;
     
+    
+    
     static WebView2Control()
     {
         CleanupOldDataFolders();
@@ -102,12 +104,18 @@ public class WebView2Control : NativeControlHost
     }
     
     private WebViewState _state = WebViewState.NotInitialized;
+    
     private CancellationTokenSource? _initCancellationTokenSource;
+    
     private CancellationTokenSource? _navigationCancellationTokenSource;
+    
     private TaskCompletionSource<bool>? _initCompletionSource;
+    
     private string? _initFailureReason;
+    
     private int _initRetryCount;
     private const int MaxInitRetries = 3;
+    
     private const int InitRetryDelayMs = 1000;
 
     public string? Source { get; private set; }
@@ -481,7 +489,7 @@ public class WebView2Control : NativeControlHost
         
         if (_isShowingErrorPage)
         {
-            Logger.LogInfo(LogCategory, "NavigationCompleted while showing error page, skipping to prevent infinite loop");
+            Logger.LogInfo(LogCategory, $"NavigationCompleted while showing error page, skipping to prevent infinite loop");
             return;
         }
         
@@ -603,7 +611,7 @@ public class WebView2Control : NativeControlHost
                 }}
             ";
             await _coreWebView2.AddScriptToExecuteOnDocumentCreatedAsync(
-                $"var style = document.createElement('style'); style.textContent = `{{lightBackgroundCss}}`; document.head ? document.head.appendChild(style) : document.documentElement.appendChild(style);"
+                $"var style = document.createElement('style'); style.textContent = `{lightBackgroundCss}`; document.head ? document.head.appendChild(style) : document.documentElement.appendChild(style);"
             );
             Logger.LogInfo(LogCategory, "Light background CSS injected with color: " + AppConstants.WebView2Theme.LightBackgroundColorHex);
             
