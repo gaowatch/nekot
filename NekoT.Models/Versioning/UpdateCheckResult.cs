@@ -8,12 +8,3 @@ public class UpdateCheckResult
     public bool IsForceUpdate { get; set; }
     public string? UpdateMessage { get; set; }
 }
-
-public class VersionInfo
-{
-    public string Version { get; set; } = string.Empty;
-    public string ReleaseNotes { get; set; } = string.Empty;
-    public string DownloadUrl { get; set; } = string.Empty;
-    public long FileSize { get; set; }
-    public string Checksum { get; set; } = string.Empty;
-}
