@@ -21,14 +21,19 @@ internal class FileLogger : IDisposable
     public FileLogger(string logFile)
     {
         _logFile = logFile;
+        
         AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
     }
 
-    private void OnProcessExit(object? sender, EventArgs e) { Dispose(); }
+    private void OnProcessExit(object? sender, EventArgs e)
+    {
+        Dispose();
+    }
 
     public void Log(string message)
     {
         if (_disposed) return;
+        
         var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
         _logQueue.Enqueue(line);
         System.Diagnostics.Debug.WriteLine(message);
@@ -40,6 +45,7 @@ internal class FileLogger : IDisposable
         lock (_logLock)
         {
             if (_disposed) return;
+            
             _timerDisposed = false;
             _instanceCount++;
             if (_instanceCount == 1 || _logTimer == null)
@@ -53,29 +59,55 @@ internal class FileLogger : IDisposable
     private void FlushLogs(object? state)
     {
         if (_logQueue.IsEmpty || _timerDisposed || _disposed) return;
+
         try
         {
             var lines = new List<string>();
-            while (_logQueue.TryDequeue(out var line)) lines.Add(line);
+            while (_logQueue.TryDequeue(out var line))
+            {
+                lines.Add(line);
+            }
+
             if (lines.Count > 0)
             {
                 lock (_logLock)
                 {
-                    try { File.AppendAllLines(_logFile, lines, Encoding.UTF8); }
-                    catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[LogError] Failed to write to {_logFile}: {ex.Message}"); }
+                    try
+                    {
+                        File.AppendAllLines(_logFile, lines, Encoding.UTF8);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LogError] Failed to write to {_logFile}: {ex.Message}");
+                    }
                 }
             }
         }
-        catch (ObjectDisposedException) { _timerDisposed = true; }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[LogError] FlushLogs failed: {ex.Message}"); }
+        catch (ObjectDisposedException)
+        {
+            _timerDisposed = true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LogError] FlushLogs failed: {ex.Message}");
+        }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
+        
         _disposed = true;
         _timerDisposed = true;
+        
         AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
-        lock (_logLock) { _logTimer?.Dispose(); _logTimer = null; }
+        
+        lock (_logLock)
+        {
+            _logTimer?.Dispose();
+            _logTimer = null;
+        }
+        
+        FlushLogs(null);
     }
 }

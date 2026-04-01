@@ -1,6 +1,7 @@
 using System.Net.Http;
 using Microsoft.Extensions.DependencyInjection;
 using NekoT.Core.Billing;
+using NekoT.Core.Browser;
 using NekoT.Core.Contracts;
 using NekoT.Core.Forwarding;
 using NekoT.Core.Http;
@@ -24,14 +25,19 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISecureStorage, SecureStorage>();
         services.AddSingleton<CostEstimator>();
         services.AddSingleton<HttpClient>(sp => HttpClientManager.GetSharedClient());
+        services.AddSingleton<BrowserTabManager>();
+        services.AddSingleton<TabNavigationService>();
         services.AddTransient<ForwardingService>();
         services.AddTransient<ChatForwardingService>();
         services.AddTransient<LocalProxyService>();
+        
         services.AddSingleton<IVersionService, SquirrelUpdateService>();
         services.AddSingleton<ForceUpdateChecker>();
         services.AddSingleton<UpdateCheckScheduler>();
+
         services.AddSingleton<ISettingsValidator, SettingsValidator>();
         services.AddSingleton<IAuditLogger, AuditLogger>();
+
         return services;
     }
 
@@ -43,6 +49,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<HomeViewModel>();
         services.AddTransient<BrowserTabViewModel>();
         services.AddTransient<TabItemViewModel>();
+
         return services;
     }
 
@@ -51,6 +58,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<MainWindow>();
         services.AddTransient<SettingsWindow>();
         services.AddTransient<ComplianceDialog>();
+
         return services;
     }
 }
