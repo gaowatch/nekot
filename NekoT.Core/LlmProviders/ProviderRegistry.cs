@@ -1,177 +1,101 @@
-using System.Collections.ObjectModel;
-
 namespace NekoT.Core.LlmProviders;
 
-public class ProviderRegistry : IProviderRegistry
+public class ProviderRegistry
 {
-    private readonly Dictionary<string, LlmProvider> _providers;
-    private readonly HashSet<string> _allowedHosts;
-    private readonly Dictionary<string, string> _hostToProvider;
+    private readonly Dictionary<string, LlmProviderBase> _providers = new();
     private readonly object _lock = new();
 
-    public ProviderRegistry()
+    public void Register(LlmProviderBase provider)
     {
-        _providers = LlmProviderDefaults.BuildDefaultProviders();
-        _allowedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        _hostToProvider = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        
-        InitializePatterns();
-    }
-
-    private void InitializePatterns()
-    {
-        var hostMappings = new[]
+        lock (_lock)
         {
-            ("openai.com", "openai"),
-            ("api.openai.com", "openai"),
-            ("anthropic.com", "anthropic"),
-            ("api.anthropic.com", "anthropic"),
-            ("minimax.chat", "minimax"),
-            ("api.minimax.chat", "minimax"),
-            ("deepseek.com", "deepseek"),
-            ("api.deepseek.com", "deepseek"),
-            ("moonshot.cn", "moonshot"),
-            ("api.moonshot.cn", "moonshot"),
-            ("zhipuai.cn", "zhipu"),
-            ("open.bigmodel.cn", "zhipu"),
-            ("dashscope.aliyuncs.com", "aliyun"),
-            ("tongyi.aliyun.com", "aliyun"),
-            ("qwenlm.aliyun.com", "aliyun"),
-            ("aigc.siliconflow.cn", "siliconflow"),
-            ("api.siliconflow.cn", "siliconflow"),
-            ("doubao.com", "douyin"),
-            ("www.doubao.com", "douyin"),
-            ("wss.doubao.com", "douyin"),
-            ("wss100-normal.doubao.com", "douyin"),
-            ("mcs.doubao.com", "douyin"),
-            ("yiyan.baidu.com", "baidu"),
-            ("aip.baidubce.com", "baidu"),
-            ("xinghuo.xfyun.cn", "tencent"),
-        };
-
-        foreach (var (host, provider) in hostMappings)
-        {
-            _allowedHosts.Add(host);
-            _hostToProvider[host] = provider;
+            _providers[provider.Name] = provider;
         }
     }
 
-    public LlmProvider? DetectProviderByUrl(string url)
+    public void Unregister(string name)
     {
-        if (string.IsNullOrEmpty(url)) return null;
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return null;
-
-        var host = uri.Host.ToLowerInvariant();
-
-        if (_hostToProvider.TryGetValue(host, out var providerName))
+        lock (_lock)
         {
-            return GetProvider(providerName);
+            _providers.Remove(name);
+        }
+    }
+
+    public LlmProviderBase? Get(string name)
+    {
+        lock (_lock)
+        {
+            return _providers.TryGetValue(name, out var provider) ? provider : null;
+        }
+    }
+
+    public IEnumerable<LlmProviderBase> GetAll()
+    {
+        lock (_lock)
+        {
+            return _providers.Values.ToList();
+        }
+    }
+
+    public bool Contains(string name)
+    {
+        lock (_lock)
+        {
+            return _providers.ContainsKey(name);
+        }
+    }
+
+    public async Task<(bool isValid, string? errorMessage)> ValidateProviderUrlAsync(string name, string url)
+    {
+        var provider = Get(name);
+        if (provider == null)
+        {
+            return (false, $"Provider '{name}' not found");
         }
 
-        foreach (var (allowedHost, name) in _hostToProvider)
+        try
         {
-            if (host.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase) &&
-                host.Length > allowedHost.Length + 1)
+            using var client = new HttpClient();
+            client.Timeout = TimeSpan.FromSeconds(10);
+            var response = await client.GetAsync(url);
+            return response.IsSuccessStatusCode ? (true, null) : (false, $"URL returned status {(int)response.StatusCode}");
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+    }
+
+    public async Task<(bool isValid, string? errorMessage)> ValidateLlmApiAsync(string name, string apiKey, string? baseUrl = null)
+    {
+        var provider = Get(name);
+        if (provider == null)
+        {
+            return (false, $"Provider '{name}' not found");
+        }
+
+        try
+        {
+            var testUrl = baseUrl ?? provider.DefaultApiUrl;
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.Clear();
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {apiKey}");
+            client.Timeout = TimeSpan.FromSeconds(30);
+
+            var requestContent = new StringContent("{\"model\": \"test\", \"messages\": [{\"role\": \"user\", \"content\": \"test\"}], \"max_tokens\": 1}", System.Text.Encoding.UTF8, "application/json");
+            var response = await client.PostAsync($"{testUrl}/chat/completions", requestContent);
+
+            if (response.IsSuccessStatusCode)
             {
-                return GetProvider(name);
-            }
-        }
-
-        return null;
-    }
-
-    public LlmProvider? DetectProviderByModel(string model)
-    {
-        if (string.IsNullOrEmpty(model)) return null;
-
-        var modelLower = model.ToLowerInvariant();
-
-        foreach (var provider in _providers.Values)
-        {
-            foreach (var keyword in provider.ModelKeywords)
-            {
-                if (modelLower.Contains(keyword.ToLowerInvariant()))
-                {
-                    return provider;
-                }
-            }
-        }
-
-        return null;
-    }
-
-    public bool IsLlmApiRequest(string url)
-    {
-        if (string.IsNullOrWhiteSpace(url)) return false;
-
-        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-            return false;
-
-        var host = uri.Host.ToLowerInvariant();
-        var pathAndQuery = uri.PathAndQuery.ToLowerInvariant();
-
-        if (host.EndsWith("doubao.com", StringComparison.OrdinalIgnoreCase))
-        {
-            if (pathAndQuery.Contains("/static/") ||
-                pathAndQuery.Contains("/obj/flow-doubao") ||
-                pathAndQuery.Contains(".js") ||
-                pathAndQuery.Contains(".css") ||
-                pathAndQuery.Contains(".png") ||
-                pathAndQuery.Contains(".jpg") ||
-                pathAndQuery.Contains(".woff") ||
-                pathAndQuery.Contains(".ico") ||
-                pathAndQuery.Contains("monitor_browser"))
-            {
-                return false;
+                return (true, null);
             }
 
-            if (pathAndQuery.Contains("/chat/completion") ||
-                pathAndQuery.Contains("/im/chain") ||
-                pathAndQuery.Contains("/im/conversation") ||
-                pathAndQuery.Contains("/im/message") ||
-                pathAndQuery.Contains("/api/") ||
-                pathAndQuery.Contains("/list") ||
-                uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-
-            return false;
+            var errorContent = await response.Content.ReadAsStringAsync();
+            return (false, $"API returned status {(int)response.StatusCode}: {errorContent}");
         }
-
-        if (_allowedHosts.Contains(host))
-            return true;
-
-        foreach (var allowedHost in _allowedHosts)
+        catch (Exception ex)
         {
-            if (host.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase) &&
-                host.Length > allowedHost.Length + 1)
-            {
-                return true;
-            }
+            return (false, ex.Message);
         }
-
-        return false;
-    }
-
-    public IReadOnlyDictionary<string, LlmProvider> GetAllProviders()
-    {
-        return _providers;
-    }
-
-    public IReadOnlySet<string> GetAllowedHosts()
-    {
-        return _allowedHosts;
-    }
-
-    public LlmProvider? GetProvider(string providerName)
-    {
-        if (_providers.TryGetValue(providerName, out var provider))
-        {
-            return provider;
-        }
-        return null;
     }
 }

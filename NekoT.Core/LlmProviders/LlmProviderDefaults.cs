@@ -2,167 +2,151 @@ namespace NekoT.Core.LlmProviders;
 
 public static class LlmProviderDefaults
 {
-    public static LlmProvider CreateMiniMaxProvider() => new LlmProvider
+    public static LlmProviderBase CreateMiniMax()
     {
-        Name = "minimax",
-        DisplayName = "MiniMax",
-        Alias = "MiniMax 2.5 系列",
-        ApiUrl = "https://api.minimaxi.com/v1/text/chatcompletion_v2",
-        ModelKeywords = new[] { "minimax", "miniMax", "minimaxi", "m2.5", "abab", "text-01" },
-        DefaultModel = "abab6.5s-chat",
-        SupportedModels = new[]
+        return new LlmProviderBase
         {
-            new ModelDisplayItem { Id = "abab6.5s-chat", DisplayName = "ABAB 6.5s", Alias = "MiniMax 2.5 快速版", Description = "快速响应，适合日常对话" },
-            new ModelDisplayItem { Id = "abab6.5g-chat", DisplayName = "ABAB 6.5g", Alias = "MiniMax 2.5 通用版", Description = "通用对话，平衡性能" },
-            new ModelDisplayItem { Id = "abab6.5t-chat", DisplayName = "ABAB 6.5t", Alias = "MiniMax 2.5 文本版", Description = "文本理解，适合分析" },
-            new ModelDisplayItem { Id = "abab5.5-chat", DisplayName = "ABAB 5.5", Alias = "MiniMax 2.0 经典版", Description = "经典稳定版本" }
-        }
-    };
-
-    public static LlmProvider CreateOpenAIProvider() => new LlmProvider
-    {
-        Name = "openai",
-        DisplayName = "OpenAI",
-        Alias = "GPT 系列",
-        ApiUrl = "https://api.openai.com/v1/chat/completions",
-        ModelKeywords = new[] { "gpt", "openai" },
-        DefaultModel = "gpt-4o-mini",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "gpt-4o", DisplayName = "GPT-4o", Alias = "最新旗舰", Description = "最强智能，适合复杂任务" },
-            new ModelDisplayItem { Id = "gpt-4o-mini", DisplayName = "GPT-4o Mini", Alias = "轻量版", Description = "性价比高，适合日常使用" },
-            new ModelDisplayItem { Id = "gpt-4-turbo", DisplayName = "GPT-4 Turbo", Alias = "增强版", Description = "增强推理，适合专业场景" },
-            new ModelDisplayItem { Id = "gpt-3.5-turbo", DisplayName = "GPT-3.5 Turbo", Alias = "经典版", Description = "快速响应，经济实惠" }
-        }
-    };
-
-    public static LlmProvider CreateAnthropicProvider() => new LlmProvider
-    {
-        Name = "anthropic",
-        DisplayName = "Anthropic Claude",
-        Alias = "Claude 系列",
-        ApiUrl = "https://api.anthropic.com/v1/messages",
-        ModelKeywords = new[] { "claude", "anthropic" },
-        DefaultModel = "claude-3-haiku-20240307",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "claude-3-opus-20240229", DisplayName = "Claude 3 Opus", Alias = "最强版", Description = "最强推理，适合研究分析" },
-            new ModelDisplayItem { Id = "claude-3-sonnet-20240229", DisplayName = "Claude 3 Sonnet", Alias = "平衡版", Description = "性能均衡，适合通用场景" },
-            new ModelDisplayItem { Id = "claude-3-haiku-20240307", DisplayName = "Claude 3 Haiku", Alias = "快速版", Description = "快速响应，适合日常对话" }
-        }
-    };
-
-    public static LlmProvider CreateGoogleProvider() => new LlmProvider
-    {
-        Name = "google",
-        DisplayName = "Google Gemini",
-        Alias = "Gemini 系列",
-        ApiUrl = "https://generativelanguage.googleapis.com/v1beta/models",
-        ModelKeywords = new[] { "gemini", "google" },
-        DefaultModel = "gemini-pro",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "gemini-1.5-pro", DisplayName = "Gemini 1.5 Pro", Alias = "专业版", Description = "高级推理，适合复杂任务" },
-            new ModelDisplayItem { Id = "gemini-1.5-flash", DisplayName = "Gemini 1.5 Flash", Alias = "快速版", Description = "快速响应，适合实时对话" },
-            new ModelDisplayItem { Id = "gemini-pro", DisplayName = "Gemini Pro", Alias = "标准版", Description = "通用对话，稳定可靠" }
-        }
-    };
-
-    public static LlmProvider CreateBaiduProvider() => new LlmProvider
-    {
-        Name = "baidu",
-        DisplayName = "百度文心",
-        Alias = "ERNIE 系列",
-        ApiUrl = "https://qianfan.baidubce.com/v2/chat/completions",
-        ModelKeywords = new[] { "ernie", "eb-", "baidu" },
-        DefaultModel = "ernie-4.0-8k",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "ernie-4.0-8k", DisplayName = "ERNIE 4.0", Alias = "文心一言 4.0", Description = "旗舰对话，中文理解强" },
-            new ModelDisplayItem { Id = "ernie-3.5-8k", DisplayName = "ERNIE 3.5", Alias = "文心一言 3.5", Description = "通用对话，性价比高" },
-            new ModelDisplayItem { Id = "ernie-speed-8k", DisplayName = "ERNIE Speed", Alias = "文心一言 速度版", Description = "快速响应，适合高频使用" }
-        }
-    };
-
-    public static LlmProvider CreateAliyunProvider() => new LlmProvider
-    {
-        Name = "aliyun",
-        DisplayName = "阿里通义",
-        Alias = "Qwen 系列",
-        ApiUrl = "https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation",
-        ModelKeywords = new[] { "qwen", "tongyi", "aliyun" },
-        DefaultModel = "qwen-turbo",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "qwen-max", DisplayName = "Qwen Max", Alias = "通义千问 Max", Description = "旗舰对话，最强能力" },
-            new ModelDisplayItem { Id = "qwen-plus", DisplayName = "Qwen Plus", Alias = "通义千问 Plus", Description = "增强对话，平衡性能" },
-            new ModelDisplayItem { Id = "qwen-turbo", DisplayName = "Qwen Turbo", Alias = "通义千问 Turbo", Description = "快速响应，经济实惠" },
-            new ModelDisplayItem { Id = "qwen-long", DisplayName = "Qwen Long", Alias = "通义千问 长文本", Description = "长文本处理，适合文档分析" }
-        }
-    };
-
-    public static LlmProvider CreateTencentProvider() => new LlmProvider
-    {
-        Name = "tencent",
-        DisplayName = "腾讯混元",
-        Alias = "混元系列",
-        ApiUrl = "https://hunyuan.cloud.tencent.com/api/v1/chat/completion",
-        ModelKeywords = new[] { "hunyuan", "tencent" },
-        DefaultModel = "hunyuan-lite",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "hunyuan-pro", DisplayName = "混元 Pro", Alias = "混元专业版", Description = "旗舰对话，最强能力" },
-            new ModelDisplayItem { Id = "hunyuan-standard", DisplayName = "混元 Standard", Alias = "混元标准版", Description = "标准对话，平衡性能" },
-            new ModelDisplayItem { Id = "hunyuan-lite", DisplayName = "混元 Lite", Alias = "混元轻量版", Description = "轻量快速，经济实惠" }
-        }
-    };
-
-    public static LlmProvider CreateDouyinProvider() => new LlmProvider
-    {
-        Name = "douyin",
-        DisplayName = "字节豆包",
-        Alias = "Doubao 系列",
-        ApiUrl = "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
-        ModelKeywords = new[] { "doubao", "douyin", "bytedance", "volc" },
-        DefaultModel = "doubao-pro-4k",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "doubao-pro-4k", DisplayName = "Doubao Pro 4K", Alias = "豆包专业版", Description = "专业对话，适合复杂任务" },
-            new ModelDisplayItem { Id = "doubao-pro-32k", DisplayName = "Doubao Pro 32K", Alias = "豆包长文本版", Description = "长文本处理，适合文档分析" },
-            new ModelDisplayItem { Id = "doubao-lite-4k", DisplayName = "Doubao Lite 4K", Alias = "豆包轻量版", Description = "轻量快速，经济实惠" }
-        }
-    };
-
-    public static LlmProvider CreateZhipuProvider() => new LlmProvider
-    {
-        Name = "zhipu",
-        DisplayName = "智谱清言",
-        Alias = "GLM 系列",
-        ApiUrl = "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-        ModelKeywords = new[] { "glm", "zhipu", "bigmodel" },
-        DefaultModel = "glm-4-flash",
-        SupportedModels = new[]
-        {
-            new ModelDisplayItem { Id = "glm-4", DisplayName = "GLM-4", Alias = "智谱清言 4", Description = "旗舰对话，最强能力" },
-            new ModelDisplayItem { Id = "glm-4-air", DisplayName = "GLM-4 Air", Alias = "智谱清言 Air", Description = "高效对话，平衡性能" },
-            new ModelDisplayItem { Id = "glm-4-flash", DisplayName = "GLM-4 Flash", Alias = "智谱清言 Flash", Description = "快速响应，经济实惠" },
-            new ModelDisplayItem { Id = "glm-3-turbo", DisplayName = "GLM-3 Turbo", Alias = "智谱清言 3", Description = "经典稳定版本" }
-        }
-    };
-
-    public static Dictionary<string, LlmProvider> BuildDefaultProviders()
-    {
-        return new Dictionary<string, LlmProvider>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["minimax"] = CreateMiniMaxProvider(),
-            ["openai"] = CreateOpenAIProvider(),
-            ["anthropic"] = CreateAnthropicProvider(),
-            ["google"] = CreateGoogleProvider(),
-            ["baidu"] = CreateBaiduProvider(),
-            ["aliyun"] = CreateAliyunProvider(),
-            ["tencent"] = CreateTencentProvider(),
-            ["douyin"] = CreateDouyinProvider(),
-            ["zhipu"] = CreateZhipuProvider()
+            Name = "MiniMax",
+            DefaultApiUrl = "https://api.minimax.chat/v1",
+            Description = "MiniMax AI",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "abab5.5-chat", "abab5.5s-chat", "abab6.5s-chat" },
+            DefaultModel = "abab5.5-chat",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
         };
+    }
+
+    public static LlmProviderBase CreateOpenAI()
+    {
+        return new LlmProviderBase
+        {
+            Name = "OpenAI",
+            DefaultApiUrl = "https://api.openai.com/v1",
+            Description = "OpenAI GPT Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo" },
+            DefaultModel = "gpt-4o-mini",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.Estimated
+        };
+    }
+
+    public static LlmProviderBase CreateAnthropic()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Anthropic",
+            DefaultApiUrl = "https://api.anthropic.com/v1",
+            Description = "Anthropic Claude Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "claude-3-5-sonnet-20241022", "claude-3-5-sonnet-20240620", "claude-3-opus-20240229", "claude-3-haiku-20240307" },
+            DefaultModel = "claude-3-5-sonnet-20241022",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateGoogle()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Google",
+            DefaultApiUrl = "https://generativelanguage.googleapis.com/v1beta",
+            Description = "Google Gemini Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "gemini-1.5-pro", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-2.0-flash" },
+            DefaultModel = "gemini-1.5-flash",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateBaidu()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Baidu",
+            DefaultApiUrl = "https://aip.baidubce.com/rpc/2.0/ai_custom/v1",
+            Description = "Baidu ERNIE Models",
+            RequiredKeys = new[] { "api_key", "secret_key" },
+            Models = new[] { "ernie-4.0-8k-latest", "ernie-3.5-8k-latest", "ernie-speed-128k", "ernie-lite-8k-0929" },
+            DefaultModel = "ernie-3.5-8k-latest",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateAliyun()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Aliyun",
+            DefaultApiUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+            Description = "Aliyun Qwen/DashScope Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "qwen-max", "qwen-plus", "qwen-turbo", "qwen-long" },
+            DefaultModel = "qwen-plus",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateTencent()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Tencent",
+            DefaultApiUrl = "https://.tencentcloud革新.com/v4/chat/completions",
+            Description = "Tencent Hunyuan Models",
+            RequiredKeys = new[] { "api_key", "secret_key" },
+            Models = new[] { "hunyuan-pro", "hunyuan-standard", "hunyuan-lite" },
+            DefaultModel = "hunyuan-standard",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateDouyin()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Douyin",
+            DefaultApiUrl = "https://ark.cn-beijing.volces.com/api/v3",
+            Description = "ByteDance Doubao Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "doubao-pro-32k", "doubao-pro-128k", "doubao-lite-32k" },
+            DefaultModel = "doubao-pro-32k",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static LlmProviderBase CreateZhipu()
+    {
+        return new LlmProviderBase
+        {
+            Name = "Zhipu",
+            DefaultApiUrl = "https://open.bigmodel.cn/api/paas/v4",
+            Description = "Zhipu GLM Models",
+            RequiredKeys = new[] { "api_key" },
+            Models = new[] { "glm-4-plus", "glm-4", "glm-4-air", "glm-4-flash" },
+            DefaultModel = "glm-4-flash",
+            SupportsStreaming = true,
+            TokenCalcType = TokenCalcType.NotSupported
+        };
+    }
+
+    public static IEnumerable<LlmProviderBase> CreateAll()
+    {
+        yield return CreateMiniMax();
+        yield return CreateOpenAI();
+        yield return CreateAnthropic();
+        yield return CreateGoogle();
+        yield return CreateBaidu();
+        yield return CreateAliyun();
+        yield return CreateTencent();
+        yield return CreateDouyin();
+        yield return CreateZhipu();
     }
 }

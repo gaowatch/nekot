@@ -1,7 +1,14 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace NekoT.Core.Storage;
 
-public interface IWriteBuffer<T> { void MarkDirty(T data); Task FlushAsync(); bool IsDirty { get; } DateTime LastFlushTime { get; } }
+public interface IWriteBuffer<T>
+{
+    int Count { get; }
+    bool IsDirty { get; }
+    void Add(T item);
+    void AddRange(IEnumerable<T> items);
+    void Clear();
+    IEnumerable<T> GetAll();
+    Task FlushAsync(CancellationToken cancellationToken = default);
+    void MarkDirty();
+    void ClearDirty();
+}

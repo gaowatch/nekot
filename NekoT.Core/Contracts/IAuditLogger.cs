@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace NekoT.Core.Contracts;
 
 public interface IAuditLogger
@@ -13,23 +10,31 @@ public interface IAuditLogger
 
 public enum AuditAction
 {
-    SettingChanged,
-    SettingSaved,
-    SettingReset,
-    DataExported,
-    DataImported,
+    ApplicationStarted,
+    ApplicationStopped,
+    SettingsChanged,
+    SettingsExported,
+    SettingsImported,
+    UpdateCheck,
+    UpdateDownloaded,
+    UpdateInstalled,
+    LanguageChanged,
+    ProxyStarted,
+    ProxyStopped,
+    ProviderAdded,
+    ProviderRemoved,
+    ProviderUpdated,
     DataCleared,
-    SecurityEvent,
-    ValidationFailed
+    ErrorOccurred
 }
 
 public class AuditLogEntry
 {
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+    public DateTime Timestamp { get; set; }
     public AuditAction Action { get; set; }
-    public string? SettingName { get; set; }
-    public string? OldValueHash { get; set; }
-    public string? NewValueHash { get; set; }
     public string? AdditionalInfo { get; set; }
-    public string? UserIdentity { get; set; }
+    public string? SettingName { get; set; }
+    public string? OldValue { get; set; }
+    public string? NewValue { get; set; }
+    public string? ErrorMessage { get; set; }
 }
