@@ -1,114 +1,112 @@
+using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
+using NekoT.Desktop.ViewModels;
 
 namespace NekoT.Desktop.Services;
 
-public class TabOverflowManager
-{
-    private const double TabWidth = 120;
-    private const double TabOverlap = 40;
-
-    public TabOverflowResult CalculateVisibleTabs(IEnumerable<object> tabs, double availableWidth)
-    {
-        var tabList = tabs.ToList();
-        var visibleTabs = new List<object>();
-        var overflowTabs = new List<object>();
-
-        if (tabList.Count == 0)
-        {
-            return new TabOverflowResult(visibleTabs, overflowTabs);
-        }
-
-        var effectiveTabWidth = TabWidth - TabOverlap;
-        var maxVisibleTabs = System.Math.Max(1, (int)(availableWidth / effectiveTabWidth));
-
-        if (tabList.Count <= maxVisibleTabs)
-        {
-            visibleTabs.AddRange(tabList);
-            return new TabOverflowResult(visibleTabs, overflowTabs);
-        }
-
-        for (int i = 0; i < tabList.Count; i++)
-        {
-            if (i < maxVisibleTabs - 1)
-            {
-                visibleTabs.Add(tabList[i]);
-            }
-            else if (i == maxVisibleTabs - 1)
-            {
-                visibleTabs.Add(tabList[i]);
-            }
-            else
-            {
-                overflowTabs.Add(tabList[i]);
-            }
-        }
-
-        return new TabOverflowResult(visibleTabs, overflowTabs);
-    }
-
-    public TabOverflowResult CalculateVisibleTabs<T>(IEnumerable<T> tabs, double availableWidth)
-    {
-        var tabList = tabs.ToList();
-        var visibleTabs = new List<T>();
-        var overflowTabs = new List<T>();
-
-        if (tabList.Count == 0)
-        {
-            return new TabOverflowResult(visibleTabs, overflowTabs);
-        }
-
-        var effectiveTabWidth = TabWidth - TabOverlap;
-        var maxVisibleTabs = System.Math.Max(1, (int)(availableWidth / effectiveTabWidth));
-
-        if (tabList.Count <= maxVisibleTabs)
-        {
-            visibleTabs.AddRange(tabList);
-            return new TabOverflowResult(visibleTabs, overflowTabs);
-        }
-
-        for (int i = 0; i < tabList.Count; i++)
-        {
-            if (i < maxVisibleTabs - 1)
-            {
-                visibleTabs.Add(tabList[i]);
-            }
-            else if (i == maxVisibleTabs - 1)
-            {
-                visibleTabs.Add(tabList[i]);
-            }
-            else
-            {
-                overflowTabs.Add(tabList[i]);
-            }
-        }
-
-        return new TabOverflowResult(visibleTabs, overflowTabs);
-    }
-}
-
 public class TabOverflowResult
 {
-    public IReadOnlyList<object> VisibleTabs { get; }
-    public IReadOnlyList<object> OverflowTabs { get; }
+    public IReadOnlyList<TabItemViewModel> VisibleTabs { get; }
+    public IReadOnlyList<TabItemViewModel> OverflowTabs { get; }
     public bool HasOverflow => OverflowTabs.Count > 0;
 
-    public TabOverflowResult(IReadOnlyList<object> visibleTabs, IReadOnlyList<object> overflowTabs)
+    public TabOverflowResult(
+        IReadOnlyList<TabItemViewModel> visibleTabs,
+        IReadOnlyList<TabItemViewModel> overflowTabs)
     {
-        VisibleTabs = visibleTabs;
-        OverflowTabs = overflowTabs;
+        VisibleTabs = visibleTabs ?? throw new ArgumentNullException(nameof(visibleTabs));
+        OverflowTabs = overflowTabs ?? throw new ArgumentNullException(nameof(overflowTabs));
     }
 }
 
-public class TabOverflowResult<T> : TabOverflowResult
+public class TabOverflowManager
 {
-    public new IReadOnlyList<T> VisibleTabs { get; }
-    public new IReadOnlyList<T> OverflowTabs { get; }
+    private const double MinTabWidth = 100;
+    private const double MaxTabWidth = 200;
+    private const double TabPadding = 8;
+    private const double OverflowButtonWidth = 40;
+    private const double CharWidthEstimate = 8;
 
-    public TabOverflowResult(IReadOnlyList<T> visibleTabs, IReadOnlyList<T> overflowTabs)
-        : base(visibleTabs, overflowTabs)
+    public TabOverflowResult CalculateVisibleTabs(
+        ObservableCollection<TabItemViewModel> tabs,
+        double availableWidth)
     {
-        VisibleTabs = visibleTabs;
-        OverflowTabs = overflowTabs;
+        if (tabs == null)
+            throw new ArgumentNullException(nameof(tabs));
+
+        if (availableWidth < 0)
+            throw new ArgumentException("Available width cannot be negative", nameof(availableWidth));
+
+        if (tabs.Count == 0)
+        {
+            return new TabOverflowResult(
+                Array.Empty<TabItemViewModel>(),
+                Array.Empty<TabItemViewModel>());
+        }
+
+        if (availableWidth == 0)
+        {
+            return new TabOverflowResult(
+                new List<TabItemViewModel> { tabs[0] },
+                tabs.Skip(1).ToList());
+        }
+
+        var fixedTabs = tabs.Where(t => !t.CanClose).ToList();
+        var closableTabs = tabs.Where(t => t.CanClose).ToList();
+
+        var fixedTabsWidth = fixedTabs.Sum(t => CalculateTabWidth(t.Title));
+        var effectiveWidth = availableWidth - fixedTabsWidth;
+
+        var (visibleClosable, overflowClosable) = DistributeTabs(closableTabs, effectiveWidth, false);
+
+        if (overflowClosable.Count > 0)
+        {
+            effectiveWidth = availableWidth - fixedTabsWidth - OverflowButtonWidth;
+            (visibleClosable, overflowClosable) = DistributeTabs(closableTabs, effectiveWidth, true);
+        }
+
+        var visibleTabs = new List<TabItemViewModel>();
+        visibleTabs.AddRange(fixedTabs);
+        visibleTabs.AddRange(visibleClosable);
+
+        return new TabOverflowResult(visibleTabs, overflowClosable.ToList());
+    }
+
+    private (List<TabItemViewModel> visible, List<TabItemViewModel> overflow) DistributeTabs(
+        IEnumerable<TabItemViewModel> tabs,
+        double availableWidth,
+        bool reserveOverflowSpace)
+    {
+        var visible = new List<TabItemViewModel>();
+        var overflow = new List<TabItemViewModel>();
+        var remainingWidth = availableWidth;
+
+        foreach (var tab in tabs)
+        {
+            var tabWidth = CalculateTabWidth(tab.Title);
+
+            if (remainingWidth >= tabWidth + TabPadding)
+            {
+                visible.Add(tab);
+                remainingWidth -= (tabWidth + TabPadding);
+            }
+            else
+            {
+                overflow.Add(tab);
+            }
+        }
+
+        return (visible, overflow);
+    }
+
+    private double CalculateTabWidth(string title)
+    {
+        if (string.IsNullOrEmpty(title))
+            return MinTabWidth;
+
+        var estimatedWidth = title.Length * CharWidthEstimate + TabPadding * 2;
+        return Math.Max(MinTabWidth, Math.Min(MaxTabWidth, estimatedWidth));
     }
 }

@@ -1,37 +1,67 @@
 using System;
+using System.Collections.ObjectModel;
+using System.Linq;
+using System.Windows.Input;
+using Avalonia.Controls;
+using NekoT.Desktop.Utilities;
+using NekoT.Desktop.ViewModels;
 
 namespace NekoT.Desktop.Services;
 
-public interface ITabNavigationService
+public class TabNavigationService
 {
-    void NavigateTo(string tabId);
-    void NavigateBack();
-    void NavigateForward();
-    bool CanNavigateBack { get; }
-    bool CanNavigateForward { get; }
-}
+    public ObservableCollection<TabItemViewModel> Tabs { get; }
+    public TabItemViewModel? SelectedTab { get; private set; }
+    public UserControl? CurrentTabContent { get; private set; }
+    public int TabCount => Tabs.Count;
+    public bool HasTabs => Tabs.Count > 0;
 
-public class TabNavigationService : ITabNavigationService
-{
-    private readonly TabItemViewModel _currentTab;
+    public ICommand GoHomeCommand { get; }
 
-    public TabNavigationService(TabItemViewModel currentTab)
+    public event Action<TabItemViewModel?>? SelectedTabChanged;
+    public event Action<UserControl?>? CurrentTabContentChanged;
+
+    public TabNavigationService()
     {
-        _currentTab = currentTab ?? throw new ArgumentNullException(nameof(currentTab));
+        Tabs = new ObservableCollection<TabItemViewModel>();
+        GoHomeCommand = new RelayCommand(_ => GoHome());
     }
 
-    public void NavigateTo(string tabId)
+    public void SelectTab(TabItemViewModel? tab)
     {
+        if (SelectedTab != tab)
+        {
+            SelectedTab = tab;
+            CurrentTabContent = tab?.Content;
+            SelectedTabChanged?.Invoke(tab);
+            CurrentTabContentChanged?.Invoke(tab?.Content);
+        }
     }
 
-    public void NavigateBack()
+    public void AddTab(TabItemViewModel tab)
     {
+        Tabs.Add(tab);
+        SelectTab(tab);
     }
 
-    public void NavigateForward()
+    public void GoHome()
     {
+        var homeTab = Tabs.FirstOrDefault(t => t.Title == "Home");
+        if (homeTab != null)
+        {
+            SelectTab(homeTab);
+        }
     }
 
-    public bool CanNavigateBack => false;
-    public bool CanNavigateForward => false;
+    public void CloseTab(TabItemViewModel tab)
+    {
+        if (Tabs.Contains(tab))
+        {
+            Tabs.Remove(tab);
+            if (SelectedTab == tab)
+            {
+                SelectTab(Tabs.LastOrDefault());
+            }
+        }
+    }
 }

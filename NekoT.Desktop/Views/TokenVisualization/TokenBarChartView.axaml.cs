@@ -1,10 +1,10 @@
 using Avalonia.Controls;
 
-namespace NekoT.Desktop.Views;
+namespace NekoT.Desktop.Views.TokenVisualization;
 
-public partial class ForwardingServiceView : UserControl
+public partial class TokenBarChartView : UserControl
 {
-    public ForwardingServiceView()
+    public TokenBarChartView()
     {
         InitializeComponent();
     }

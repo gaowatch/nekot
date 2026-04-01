@@ -188,12 +188,12 @@ public partial class MainWindow : Window
                 Width = windowWidth;
                 Height = windowHeight;
                 
-                Log($"[Window] 已将窗口定位到主显示器: {Position}, 尺寸: {Width}x{Height}");
+                Log($"[Window] Window positioned on primary screen: {Position}, Size: {Width}x{Height}");
             }
         }
         catch (Exception ex)
         {
-            Log($"[Window] 确保窗口在主显示器时出错: {ex.Message}");
+            Log($"[Window] Error ensuring window on primary screen: {ex.Message}");
         }
     }
     
@@ -254,43 +254,14 @@ public partial class MainWindow : Window
     {
         try
         {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleaning up before exit...");
-
             if (DataContext is MainViewModel mainViewModel)
             {
                 var forwardingService = mainViewModel.ForwardingService;
                 if (forwardingService != null && !forwardingService.IsDisposed)
                 {
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] Disposing ForwardingServiceViewModel...");
                     await forwardingService.DisposeAsync();
                 }
             }
-
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleanup completed");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainWindow] Cleanup error: {ex.Message}");
-        }
-    }
-
-    private void CleanupBeforeExit()
-    {
-        try
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleaning up before exit...");
-
-            if (DataContext is MainViewModel mainViewModel)
-            {
-                var forwardingService = mainViewModel.ForwardingService;
-                if (forwardingService != null && !forwardingService.IsDisposed)
-                {
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] Disposing ForwardingServiceViewModel...");
-                    forwardingService.Dispose();
-                }
-            }
-
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleanup completed");
         }
         catch (Exception ex)
         {
@@ -371,9 +342,7 @@ public partial class MainWindow : Window
         }
 
         SaveTokenUsageData();
-
         await CleanupBeforeExitAsync();
-
         _glowAnimationTimer?.Stop();
         _trayIcon?.Dispose();
         _trayIcon = null;
@@ -410,7 +379,6 @@ public partial class MainWindow : Window
                 var forwardingService = mainViewModel.ForwardingService;
                 if (forwardingService != null && !forwardingService.IsDisposed)
                 {
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] Saving token usage data before hide...");
                     forwardingService.SaveTokenUsageSync();
                 }
             }

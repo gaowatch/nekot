@@ -87,16 +87,8 @@ public class LanguageService : INotifyPropertyChanged
         }
     }
 
-    public void SwitchToChinese()
-    {
-        SwitchLanguage("zh-CN");
-    }
-
-    public void SwitchToEnglish()
-    {
-        SwitchLanguage("en");
-    }
-
+    public void SwitchToChinese() => SwitchLanguage("zh-CN");
+    public void SwitchToEnglish() => SwitchLanguage("en");
     public bool IsChinese => CurrentCulture.Name == "zh-CN";
     public bool IsEnglish => CurrentCulture.Name.StartsWith("en");
 

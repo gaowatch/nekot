@@ -12,5 +12,8 @@ public partial class ComplianceInfoWindow : Window
         WindowIconHelper.RemoveIcon(this);
     }
 
-    private void OnClose(object? sender, RoutedEventArgs e) { Close(); }
+    private void OnClose(object? sender, RoutedEventArgs e)
+    {
+        Close();
+    }
 }

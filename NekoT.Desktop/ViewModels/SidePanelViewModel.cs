@@ -1,11 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Threading;
 using System.Windows.Input;
 using NekoT.Core.Security;
 using NekoT.Core.LlmProviders;
@@ -54,8 +51,7 @@ public class SidePanelViewModel : ViewModelBase
                 DisplayName = p.DisplayName,
                 Alias = p.Alias,
                 ApiUrl = p.ApiUrl
-            })
-        );
+            }));
 
         SearchEngines = new ObservableCollection<string>
         {
@@ -68,18 +64,8 @@ public class SidePanelViewModel : ViewModelBase
         UpdateAvailableModels(_selectedProvider);
     }
 
-    public bool IsOpen
-    {
-        get => _isOpen;
-        set => SetField(ref _isOpen, value);
-    }
-
-    public string ApiKey
-    {
-        get => _apiKey;
-        set => SetField(ref _apiKey, value);
-    }
-
+    public bool IsOpen { get => _isOpen; set => SetField(ref _isOpen, value); }
+    public string ApiKey { get => _apiKey; set => SetField(ref _apiKey, value); }
     public string SelectedProvider
     {
         get => _selectedProvider;
@@ -101,198 +87,56 @@ public class SidePanelViewModel : ViewModelBase
             if (SetField(ref _selectedModel, value))
             {
                 ModelChanged?.Invoke(this, EventArgs.Empty);
-                System.Diagnostics.Debug.WriteLine($"[SidePanel] SelectedModel changed: {value}");
             }
         }
     }
 
     public ObservableCollection<ModelDisplayItem> AvailableModels { get; } = new();
-
-    public int SelectedModelIndex
+    public ObservableCollection<ProviderDisplayItem> AvailableProviders { get; }
+    public ObservableCollection<string> SearchEngines { get; }
+    public bool HasApiKey => !string.IsNullOrEmpty(_apiKey);
+    public ICommand SaveApiKeyCommand { get; }
+    public ICommand ClearApiKeyCommand { get; }
+    public int SessionTokens { get => _sessionTokens; set => SetField(ref _sessionTokens, value); }
+    public int TotalTokens { get => _totalTokens; set => SetField(ref _totalTokens, value); }
+    public bool IsForwardingConnected
     {
-        get
-        {
-            for (int i = 0; i < AvailableModels.Count; i++)
-            {
-                if (AvailableModels[i].Id == _selectedModel)
-                    return i;
-            }
-            return 0;
-        }
-        set
-        {
-            if (value >= 0 && value < AvailableModels.Count)
-            {
-                SelectedModel = AvailableModels[value].Id;
-            }
-        }
+        get => _isForwardingConnected;
+        set { if (SetField(ref _isForwardingConnected, value)) ForwardingStatus = value ? Strings.Status_Connected : Strings.Status_NotConnected; }
     }
+    public string ForwardingStatus { get => _forwardingStatus; private set => SetField(ref _forwardingStatus, value); }
+    public string ValidationStatus { get => _validationStatus; set => SetField(ref _validationStatus, value); }
+    public string HomePage { get => _homePage; set { if (SetField(ref _homePage, value)) BrowserSettingsChanged?.Invoke(this, EventArgs.Empty); } }
+    public int SelectedSearchEngineIndex { get => _selectedSearchEngineIndex; set { if (SetField(ref _selectedSearchEngineIndex, value)) BrowserSettingsChanged?.Invoke(this, EventArgs.Empty); } }
+    public int ZoomLevel { get => _zoomLevel; set { if (SetField(ref _zoomLevel, value)) BrowserSettingsChanged?.Invoke(this, EventArgs.Empty); } }
+    public bool EnableDevTools { get => _enableDevTools; set { if (SetField(ref _enableDevTools, value)) BrowserSettingsChanged?.Invoke(this, EventArgs.Empty); } }
+
+    public string GetSearchEngineUrl() => _selectedSearchEngineIndex switch
+    {
+        0 => "https://www.baidu.com/s?wd=",
+        1 => "https://www.bing.com/search?q=",
+        2 => "https://www.google.com/search?q=",
+        3 => "https://www.sogou.com/web?query=",
+        _ => "https://www.baidu.com/s?wd="
+    };
+
+    public void UpdateTokens(int sessionTokens, int totalTokens) { SessionTokens = sessionTokens; TotalTokens = totalTokens; }
 
     private void UpdateAvailableModels(string providerName)
     {
         AvailableModels.Clear();
         var models = _providerManager.GetSupportedModels(providerName);
-        foreach (var model in models)
-        {
-            AvailableModels.Add(model);
-        }
-
+        foreach (var model in models) AvailableModels.Add(model);
         var defaultModel = _providerManager.GetDefaultModel(providerName);
-        if (!string.IsNullOrEmpty(defaultModel))
-        {
-            _selectedModel = defaultModel;
-            OnPropertyChanged(nameof(SelectedModel));
-            OnPropertyChanged(nameof(SelectedModelIndex));
-        }
-        else if (AvailableModels.Count > 0)
-        {
-            _selectedModel = AvailableModels[0].Id;
-            OnPropertyChanged(nameof(SelectedModel));
-            OnPropertyChanged(nameof(SelectedModelIndex));
-        }
+        if (!string.IsNullOrEmpty(defaultModel)) { _selectedModel = defaultModel; OnPropertyChanged(nameof(SelectedModel)); }
+        else if (AvailableModels.Count > 0) { _selectedModel = AvailableModels[0].Id; OnPropertyChanged(nameof(SelectedModel)); }
     }
 
-    public ObservableCollection<ProviderDisplayItem> AvailableProviders { get; }
-
-    public ObservableCollection<string> SearchEngines { get; }
-
-    public bool HasApiKey => !string.IsNullOrEmpty(_apiKey);
-
-    public ICommand SaveApiKeyCommand { get; }
-    public ICommand ClearApiKeyCommand { get; }
-
-    public int SessionTokens
-    {
-        get => _sessionTokens;
-        set => SetField(ref _sessionTokens, value);
-    }
-
-    public int TotalTokens
-    {
-        get => _totalTokens;
-        set => SetField(ref _totalTokens, value);
-    }
-
-    public bool IsForwardingConnected
-    {
-        get => _isForwardingConnected;
-        set
-        {
-            if (SetField(ref _isForwardingConnected, value))
-            {
-                ForwardingStatus = value ? Strings.Status_Connected : Strings.Status_NotConnected;
-            }
-        }
-    }
-
-    public string ForwardingStatus
-    {
-        get => _forwardingStatus;
-        private set => SetField(ref _forwardingStatus, value);
-    }
-
-    public string ValidationStatus
-    {
-        get => _validationStatus;
-        set => SetField(ref _validationStatus, value);
-    }
-
-    public string HomePage
-    {
-        get => _homePage;
-        set
-        {
-            if (SetField(ref _homePage, value))
-            {
-                BrowserSettingsChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
-
-    public int SelectedSearchEngineIndex
-    {
-        get => _selectedSearchEngineIndex;
-        set
-        {
-            if (SetField(ref _selectedSearchEngineIndex, value))
-            {
-                BrowserSettingsChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
-
-    public int ZoomLevel
-    {
-        get => _zoomLevel;
-        set
-        {
-            if (SetField(ref _zoomLevel, value))
-            {
-                BrowserSettingsChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
-
-    public bool EnableDevTools
-    {
-        get => _enableDevTools;
-        set
-        {
-            if (SetField(ref _enableDevTools, value))
-            {
-                BrowserSettingsChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-    }
-
-    public string GetSearchEngineUrl()
-    {
-        return _selectedSearchEngineIndex switch
-        {
-            0 => "https://www.baidu.com/s?wd=",
-            1 => "https://www.bing.com/search?q=",
-            2 => "https://www.google.com/search?q=",
-            3 => "https://www.sogou.com/web?query=",
-            _ => "https://www.baidu.com/s?wd="
-        };
-    }
-
-    public void UpdateTokens(int sessionTokens, int totalTokens)
-    {
-        SessionTokens = sessionTokens;
-        TotalTokens = totalTokens;
-    }
-
-    public int SelectedProviderIndex
-    {
-        get
-        {
-            for (int i = 0; i < AvailableProviders.Count; i++)
-            {
-                if (AvailableProviders[i].Name.Equals(_selectedProvider, StringComparison.OrdinalIgnoreCase))
-                    return i;
-            }
-            return 0;
-        }
-        set
-        {
-            if (value >= 0 && value < AvailableProviders.Count)
-            {
-                SelectedProvider = AvailableProviders[value].Name;
-            }
-        }
-    }
-
-    public void TogglePanel()
-    {
-        IsOpen = !IsOpen;
-    }
+    public void TogglePanel() => IsOpen = !IsOpen;
 
     public bool ValidateApiKeyFormat(string provider, string apiKey)
     {
-        if (string.IsNullOrWhiteSpace(apiKey))
-            return false;
-
+        if (string.IsNullOrWhiteSpace(apiKey)) return false;
         return provider.ToLowerInvariant() switch
         {
             "openai" => apiKey.StartsWith("sk-") && apiKey.Length >= 20,
@@ -313,38 +157,13 @@ public class SidePanelViewModel : ViewModelBase
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(ApiKey))
-            {
-                ValidationStatus = Strings.Status_EnterAPIKey;
-                return;
-            }
-
-            if (!ValidateApiKeyFormat(SelectedProvider, ApiKey))
-            {
-                ValidationStatus = Strings.Status_InvalidAPIKey;
-                return;
-            }
-
+            if (string.IsNullOrWhiteSpace(ApiKey)) { ValidationStatus = Strings.Status_EnterAPIKey; return; }
+            if (!ValidateApiKeyFormat(SelectedProvider, ApiKey)) { ValidationStatus = Strings.Status_InvalidAPIKey; return; }
             _secureStorage.SaveApiKey(SelectedProvider, ApiKey);
             OnPropertyChanged(nameof(HasApiKey));
             ValidationStatus = Strings.Status_APIKeySaved;
-            System.Diagnostics.Debug.WriteLine($"[SidePanel] API密钥已保存: {SelectedProvider}");
         }
-        catch (UnauthorizedAccessException ex)
-        {
-            ValidationStatus = Strings.Status_SaveFailedNoPermission;
-            System.Diagnostics.Debug.WriteLine($"[SidePanel] 保存API密钥失败：无权限访问存储位置 - {ex.Message}");
-        }
-        catch (IOException ex)
-        {
-            ValidationStatus = Strings.Status_SaveFailedIO;
-            System.Diagnostics.Debug.WriteLine($"[SidePanel] 保存API密钥失败：IO错误 - {ex.Message}");
-        }
-        catch (Exception ex)
-        {
-            ValidationStatus = $"{Strings.Status_SaveFailed}{ex.Message}";
-            System.Diagnostics.Debug.WriteLine($"[SidePanel] 保存API密钥失败：{ex.Message}");
-        }
+        catch (Exception ex) { ValidationStatus = $"{Strings.Status_SaveFailed}{ex.Message}"; }
     }
 
     public void ClearApiKey()
@@ -356,50 +175,12 @@ public class SidePanelViewModel : ViewModelBase
             ValidationStatus = string.Empty;
             OnPropertyChanged(nameof(HasApiKey));
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SidePanel] 清除API密钥失败：{ex.Message}");
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SidePanel] Clear API key failed: {ex.Message}"); }
     }
 
     private void LoadSavedApiKey()
     {
         var savedKey = _secureStorage.GetApiKey(SelectedProvider);
-        if (!string.IsNullOrEmpty(savedKey))
-        {
-            ApiKey = savedKey;
-        }
-    }
-
-    public void AtomicAddSessionTokens(int delta)
-    {
-        int originalValue, newValue;
-        do
-        {
-            originalValue = _sessionTokens;
-            newValue = originalValue + delta;
-        } while (Interlocked.CompareExchange(ref _sessionTokens, newValue, originalValue) != originalValue);
-        OnPropertyChanged(nameof(SessionTokens));
-    }
-
-    public void AtomicAddTotalTokens(int delta)
-    {
-        int originalValue, newValue;
-        do
-        {
-            originalValue = _totalTokens;
-            newValue = originalValue + delta;
-        } while (Interlocked.CompareExchange(ref _totalTokens, newValue, originalValue) != originalValue);
-        OnPropertyChanged(nameof(TotalTokens));
-    }
-
-    public void ResetSessionTokens()
-    {
-        int originalValue;
-        do
-        {
-            originalValue = _sessionTokens;
-        } while (Interlocked.CompareExchange(ref _sessionTokens, 0, originalValue) != originalValue);
-        OnPropertyChanged(nameof(SessionTokens));
+        if (!string.IsNullOrEmpty(savedKey)) ApiKey = savedKey;
     }
 }

@@ -30,5 +30,8 @@ public partial class LanguageChangeDialog : Window
         Close();
     }
 
-    private void OnCancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { Close(); }
+    private void OnCancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        Close();
+    }
 }
