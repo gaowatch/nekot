@@ -1,4 +1,7 @@
+using System;
+using System.Threading.Tasks;
 using System.Windows.Input;
+using Avalonia.Threading;
 
 namespace NekoT.Desktop;
 
@@ -15,9 +18,86 @@ public class RelayCommand : ICommand
 
     public event EventHandler? CanExecuteChanged;
 
-    public bool CanExecute(object? parameter) => _canExecute == null || _canExecute(parameter);
-
+    public bool CanExecute(object? parameter) => _canExecute?.Invoke(parameter) ?? true;
     public void Execute(object? parameter) => _execute(parameter);
 
     public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+public class AsyncRelayCommand : ICommand
+{
+    private readonly Func<object?, Task> _execute;
+    private readonly Func<object?, bool>? _canExecute;
+    private bool _isExecuting;
+
+    public AsyncRelayCommand(Func<object?, Task> execute, Func<object?, bool>? canExecute = null)
+    {
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
+    }
+
+    public event EventHandler? CanExecuteChanged;
+
+    public bool CanExecute(object? parameter) => !_isExecuting && (_canExecute?.Invoke(parameter) ?? true);
+
+    public async void Execute(object? parameter)
+    {
+        if (!CanExecute(parameter))
+            return;
+
+        try
+        {
+            _isExecuting = true;
+            RaiseCanExecuteChanged();
+            await _execute(parameter).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (AggregateException aggEx)
+        {
+            aggEx.Handle(ex =>
+            {
+                if (ex is OperationCanceledException)
+                    return true;
+                System.Diagnostics.Debug.WriteLine($"[AsyncRelayCommand] Unhandled exception: {ex.Message}");
+                return true;
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[AsyncRelayCommand] Unhandled exception: {ex.Message}");
+        }
+        finally
+        {
+            _isExecuting = false;
+            if (Dispatcher.UIThread.CheckAccess())
+            {
+                RaiseCanExecuteChanged();
+            }
+            else
+            {
+                await Dispatcher.UIThread.InvokeAsync(RaiseCanExecuteChanged);
+            }
+        }
+    }
+
+    public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+}
+
+public class RelayCommand<T> : ICommand
+{
+    private readonly Action<T?> _execute;
+    private readonly Func<T?, bool>? _canExecute;
+
+    public RelayCommand(Action<T?> execute, Func<T?, bool>? canExecute = null)
+    {
+        _execute = execute ?? throw new ArgumentNullException(nameof(execute));
+        _canExecute = canExecute;
+    }
+
+    public event EventHandler? CanExecuteChanged;
+
+    public bool CanExecute(object? parameter) => _canExecute?.Invoke((T?)parameter) ?? true;
+    public void Execute(object? parameter) => _execute((T?)parameter);
 }
