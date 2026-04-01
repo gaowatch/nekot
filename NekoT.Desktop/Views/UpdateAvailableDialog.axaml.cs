@@ -47,7 +47,7 @@ public partial class UpdateAvailableDialog : Window
         Close(false);
     }
 
-    private void OnLaterClick(object? sender, Avalova.Interactivity.RoutedEventArgs e)
+    private void OnLaterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         Close(false);
     }
