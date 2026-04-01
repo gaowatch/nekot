@@ -4,14 +4,6 @@ using System.Threading.Tasks;
 
 namespace NekoT.Core.Storage;
 
-public interface IWriteBuffer<T>
-{
-    void MarkDirty(T data);
-    Task FlushAsync();
-    bool IsDirty { get; }
-    DateTime LastFlushTime { get; }
-}
-
 public class WriteBuffer<T> : IWriteBuffer<T>, IDisposable
 {
     private T? _buffer;
@@ -37,57 +29,25 @@ public class WriteBuffer<T> : IWriteBuffer<T>, IDisposable
     public void MarkDirty(T data)
     {
         if (_disposed) return;
-
-        lock (this)
-        {
-            _buffer = data;
-            _isDirty = true;
-        }
+        lock (this) { _buffer = data; _isDirty = true; }
     }
 
-    private async void OnTimerCallback(object? state)
-    {
-        if (_disposed || !_isDirty) return;
-        await FlushAsync();
-    }
+    private async void OnTimerCallback(object? state) { if (_disposed || !_isDirty) return; await FlushAsync(); }
 
     public async Task FlushAsync()
     {
         if (_disposed) return;
-
         await _lock.WaitAsync();
-        try
-        {
-            if (!_isDirty || _buffer == null) return;
-
-            await _flushAction(_buffer);
-            _isDirty = false;
-            _lastFlushTime = DateTime.UtcNow;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        try { if (!_isDirty || _buffer == null) return; await _flushAction(_buffer); _isDirty = false; _lastFlushTime = DateTime.UtcNow; }
+        finally { _lock.Release(); }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
-
         _disposed = true;
         _flushTimer.Dispose();
-
-        if (_isDirty && _buffer != null)
-        {
-            try
-            {
-                FlushAsync().GetAwaiter().GetResult();
-            }
-            catch
-            {
-            }
-        }
-
+        if (_isDirty && _buffer != null) { try { FlushAsync().GetAwaiter().GetResult(); } catch { } }
         _lock.Dispose();
     }
 }
