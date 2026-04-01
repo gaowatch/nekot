@@ -44,7 +44,7 @@ public partial class MainViewModel : ViewModelBase
     private AppLogoMode _logoMode = AppLogoMode.Browser;
     private string _uploadSpeedText = "0 B/s";
     private string _downloadSpeedText = "0 B/s";
-    private double _availableWidth = 800;
+    private double _availableWidth = 800; // 默认窗口宽度
     private TabOverflowResult? _cachedOverflowResult;
     private double _lastCalculatedWidth = -1;
     
@@ -174,6 +174,9 @@ public partial class MainViewModel : ViewModelBase
         return _cachedOverflowResult;
     }
 
+    /// <summary>
+    /// 可见标签集合(根据可用宽度计算)
+    /// </summary>
     public IReadOnlyList<TabItemViewModel> VisibleTabs
     {
         get
@@ -182,6 +185,9 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// 溢出标签集合
+    /// </summary>
     public IReadOnlyList<TabItemViewModel> OverflowTabs
     {
         get
@@ -190,6 +196,9 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// 是否存在溢出标签
+    /// </summary>
     public bool HasOverflowTabs
     {
         get
@@ -399,6 +408,7 @@ public partial class MainViewModel : ViewModelBase
         _homeViewModel.NavigateRequested += OnHomeNavigateRequested;
         _homeView.NavigationRequested += OnHomeNavigateRequested;
         
+        // 订阅 Selected 事件，确保点击标签页时 MainViewModel.SelectedTab 同步更新
         HomeTab.Selected += (s, e) => SelectTab(HomeTab);
         
         Tabs.Add(HomeTab);
@@ -421,6 +431,7 @@ public partial class MainViewModel : ViewModelBase
             CanClose = false
         };
         
+        // 订阅 Selected 事件，确保点击标签页时 MainViewModel.SelectedTab 同步更新
         ChatTab.Selected += (s, e) => SelectTab(ChatTab);
         
         Tabs.Add(ChatTab);
@@ -623,6 +634,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnChatMessageSent(object? sender, string message)
     {
+        // 使用 async void 的安全模式：捕获所有异常并记录
         _ = HandleChatMessageAsync(message).ContinueWith(
             task =>
             {
@@ -721,22 +733,23 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggerService.Instance.LogError("Forwarding", "Unauthorized", ex);
             SidePanelViewModel.IsForwardingConnected = false;
-            return ($("{Strings.Error_AccessDenied} {ex.Message}", null);
+            return ($"{Strings.Error_AccessDenied} {ex.Message}", null);
         }
         catch (System.Net.Http.HttpRequestException ex)
         {
             LoggerService.Instance.LogError("Forwarding", "HTTP error", ex);
             SidePanelViewModel.IsForwardingConnected = false;
-            return ($("{Strings.Error_NetworkFailed} {ex.Message}", null);
+            return ($"{Strings.Error_NetworkFailed} {ex.Message}", null);
         }
         catch (Exception ex)
         {
             LoggerService.Instance.LogError("Forwarding", "Exception", ex);
             SidePanelViewModel.IsForwardingConnected = false;
-            return ($("{Strings.Error_ForwardingFailed} {ex.Message}", null);
+            return ($"{Strings.Error_ForwardingFailed} {ex.Message}", null);
         }
     }
 
+    // 线程安全：使用 Interlocked 进行原子操作
     private int _totalTokens = 0;
 
     public int TotalTokens
@@ -749,6 +762,9 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// 重载方法：单参数版本，用于浏览器 Token 提取
+    /// </summary>
     public void RecordUsage(int totalTokens, string? provider = null)
     {
         RecordUsage(totalTokens, 0, provider);
@@ -758,14 +774,18 @@ public partial class MainViewModel : ViewModelBase
     {
         var totalTokens = inputTokens + outputTokens;
         
+        // 使用 Interlocked 原子增加 total tokens
         var newTotal = Interlocked.Add(ref _totalTokens, totalTokens);
         
+        // 使用 SidePanelViewModel 提供的原子方法进行线程安全更新
         SidePanelViewModel.AtomicAddTotalTokens(totalTokens);
         SidePanelViewModel.AtomicAddSessionTokens(totalTokens);
         ChatViewModel.AddTokens(totalTokens);
         
+        // 更新转发功能的 token 统计
         _forwardingServiceViewModel.RecordTokenUsage(inputTokens, outputTokens);
         
+        // 确保在 UI 线程上操作 ObservableCollection
         var record = new UsageDisplayRecord
         {
             Tokens = totalTokens,
@@ -773,6 +793,7 @@ public partial class MainViewModel : ViewModelBase
             Provider = provider ?? "Unknown"
         };
         
+        // 使用 InvokeAsync 确保同步执行，避免竞态条件
         Dispatcher.UIThread.InvokeAsync(() =>
         {
             UsageRecords.Insert(0, record);
@@ -782,6 +803,7 @@ public partial class MainViewModel : ViewModelBase
             }
         });
         
+        // 在 UI 线程上触发属性变更通知
         Dispatcher.UIThread.Post(() =>
         {
             OnPropertyChanged(nameof(TotalTokens));
@@ -835,6 +857,10 @@ public partial class MainViewModel : ViewModelBase
     public void StartService() => IsServiceRunning = true;
     public void StopService() => IsServiceRunning = false;
 
+    /// <summary>
+    /// 更新可用宽度并重新计算溢出状态
+    /// </summary>
+    /// <param name="width">新的可用宽度</param>
     public void UpdateAvailableWidth(double width)
     {
         if (width < 0)
