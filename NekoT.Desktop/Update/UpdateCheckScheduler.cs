@@ -23,7 +23,12 @@ public class UpdateCheckScheduler
 
     public void StartPeriodicCheck()
     {
-        Dispatcher.UIThread.Post(async () => { await Task.Delay(TimeSpan.FromMinutes(5)); await CheckForUpdateAsync(); });
+        Dispatcher.UIThread.Post(async () =>
+        {
+            await Task.Delay(TimeSpan.FromMinutes(5));
+            await CheckForUpdateAsync();
+        });
+
         _checkTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(24) };
         _checkTimer.Tick += async (s, e) => await CheckForUpdateAsync();
         _checkTimer.Start();
@@ -33,11 +38,22 @@ public class UpdateCheckScheduler
     {
         var lastCheck = _userSettings.LastUpdateCheckTime;
         if (lastCheck.HasValue && (DateTime.Now - lastCheck.Value).TotalHours < 24) return;
+
         var result = await _versionService.CheckForUpdateAsync();
         _userSettings.LastUpdateCheckTime = DateTime.Now;
-        if (result.HasUpdate && !IsVersionSkipped(result.LatestVersion?.Version)) UpdateAvailable?.Invoke(this, result);
+
+        if (result.HasUpdate && !IsVersionSkipped(result.LatestVersion?.Version))
+            UpdateAvailable?.Invoke(this, result);
     }
 
-    private bool IsVersionSkipped(string? version) => !string.IsNullOrEmpty(version) && _userSettings.SkippedVersions.Contains(version);
-    public void SkipVersion(string version) => _userSettings.SkippedVersions.Add(version);
+    private bool IsVersionSkipped(string? version)
+    {
+        if (string.IsNullOrEmpty(version)) return false;
+        return _userSettings.SkippedVersions.Contains(version);
+    }
+
+    public void SkipVersion(string version)
+    {
+        _userSettings.SkippedVersions.Add(version);
+    }
 }

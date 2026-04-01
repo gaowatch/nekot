@@ -37,13 +37,9 @@ public class TrafficStatsEventArgs : EventArgs
 
     private static string FormatSpeed(double bytesPerSecond)
     {
-        if (bytesPerSecond < 1024)
-            return $"{bytesPerSecond:F0} B/s";
-        else if (bytesPerSecond < 1024 * 1024)
-            return $"{bytesPerSecond / 1024:F1} KB/s";
-        else if (bytesPerSecond < 1024 * 1024 * 1024)
-            return $"{bytesPerSecond / (1024 * 1024):F1} MB/s";
-        else
-            return $"{bytesPerSecond / (1024 * 1024 * 1024):F2} GB/s";
+        if (bytesPerSecond < 1024) return $"{bytesPerSecond:F0} B/s";
+        else if (bytesPerSecond < 1024 * 1024) return $"{bytesPerSecond / 1024:F1} KB/s";
+        else if (bytesPerSecond < 1024 * 1024 * 1024) return $"{bytesPerSecond / (1024 * 1024):F1} MB/s";
+        else return $"{bytesPerSecond / (1024 * 1024 * 1024):F2} GB/s";
     }
 }

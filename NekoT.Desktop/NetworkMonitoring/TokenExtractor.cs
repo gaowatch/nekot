@@ -45,9 +45,7 @@ public static class TokenExtractor
         if (string.IsNullOrWhiteSpace(url)) return false;
 
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-        {
             return false;
-        }
 
         var host = uri.Host.ToLowerInvariant();
         var pathAndQuery = uri.PathAndQuery.ToLowerInvariant();
@@ -63,9 +61,7 @@ public static class TokenExtractor
                 pathAndQuery.Contains(".woff") ||
                 pathAndQuery.Contains(".ico") ||
                 pathAndQuery.Contains("monitor_browser"))
-            {
                 return false;
-            }
 
             if (pathAndQuery.Contains("/chat/completion") ||
                 pathAndQuery.Contains("/im/chain") ||
@@ -74,9 +70,7 @@ public static class TokenExtractor
                 pathAndQuery.Contains("/api/") ||
                 pathAndQuery.Contains("/list") ||
                 uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
-            {
                 return true;
-            }
 
             return false;
         }
@@ -87,7 +81,6 @@ public static class TokenExtractor
             if (pathAndQuery.Contains("/static/") ||
                 pathAndQuery.Contains("/assets/") ||
                 pathAndQuery.Contains("/kimi-web") ||
-                pathAndQuery.Contains("/kimi-web-seo") ||
                 pathAndQuery.Contains(".js") ||
                 pathAndQuery.Contains(".css") ||
                 pathAndQuery.Contains(".png") ||
@@ -96,23 +89,16 @@ public static class TokenExtractor
                 pathAndQuery.Contains(".ico") ||
                 pathAndQuery.Contains(".riv") ||
                 pathAndQuery.Contains(".ttf"))
-            {
                 return false;
-            }
 
-            if (pathAndQuery == "/" || 
-                pathAndQuery == "/zh/" ||
+            if (pathAndQuery == "/" || pathAndQuery == "/zh/" ||
                 pathAndQuery.StartsWith("/chat/") && !pathAndQuery.Contains("/apiv2/"))
-            {
                 return false;
-            }
 
             if (pathAndQuery.Contains("/apiv2/") ||
                 pathAndQuery.Contains("/v1/chat") ||
                 pathAndQuery.Contains("/api/"))
-            {
                 return true;
-            }
 
             return false;
         }
@@ -120,7 +106,6 @@ public static class TokenExtractor
         if (host.EndsWith("deepseek.com", StringComparison.OrdinalIgnoreCase))
         {
             if (pathAndQuery.Contains("/static/") ||
-                pathAndQuery.Contains("/chat/static/") ||
                 pathAndQuery.Contains("/fe-static/") ||
                 pathAndQuery.Contains(".js") ||
                 pathAndQuery.Contains(".css") ||
@@ -130,16 +115,12 @@ public static class TokenExtractor
                 pathAndQuery.Contains(".ico") ||
                 pathAndQuery.Contains(".wasm") ||
                 pathAndQuery.Contains(".ttf"))
-            {
                 return false;
-            }
 
             if (pathAndQuery.Contains("/api/") ||
                 pathAndQuery.Contains("/chat/completions") ||
                 pathAndQuery.Contains("/v1/chat"))
-            {
                 return true;
-            }
 
             return false;
         }
@@ -158,51 +139,28 @@ public static class TokenExtractor
 
         var host = uri.Host.ToLowerInvariant();
 
-        if (IsExactDomainOrSubdomain(host, "openai.com"))
-            return "OpenAI";
-        if (IsExactDomainOrSubdomain(host, "anthropic.com"))
-            return "Anthropic";
-        if (IsExactDomainOrSubdomain(host, "minimax.chat"))
-            return "MiniMax";
-        if (IsExactDomainOrSubdomain(host, "deepseek.com"))
-            return "DeepSeek";
-        if (IsExactDomainOrSubdomain(host, "moonshot.cn") ||
-            IsExactDomainOrSubdomain(host, "kimi.com"))
-            return "Moonshot";
-        if (IsExactDomainOrSubdomain(host, "zhipuai.cn") ||
-            IsExactDomainOrSubdomain(host, "bigmodel.cn"))
-            return "ZhipuAI";
-        if (IsExactDomainOrSubdomain(host, "dashscope.aliyuncs.com") ||
-            IsExactDomainOrSubdomain(host, "tongyi.aliyun.com") ||
-            IsExactDomainOrSubdomain(host, "qwenlm.aliyun.com"))
-            return "Alibaba";
-        if (IsExactDomainOrSubdomain(host, "siliconflow.cn"))
-            return "SiliconFlow";
-        if (host.EndsWith("doubao.com", StringComparison.OrdinalIgnoreCase))
-            return "Doubao";
-        if (IsExactDomainOrSubdomain(host, "yiyan.baidu.com") ||
-            IsExactDomainOrSubdomain(host, "aip.baidubce.com"))
-            return "Baidu";
-        if (IsExactDomainOrSubdomain(host, "xinghuo.xfyun.cn"))
-            return "iFlytek";
+        if (IsExactDomainOrSubdomain(host, "openai.com")) return "OpenAI";
+        if (IsExactDomainOrSubdomain(host, "anthropic.com")) return "Anthropic";
+        if (IsExactDomainOrSubdomain(host, "minimax.chat")) return "MiniMax";
+        if (IsExactDomainOrSubdomain(host, "deepseek.com")) return "DeepSeek";
+        if (IsExactDomainOrSubdomain(host, "moonshot.cn") || IsExactDomainOrSubdomain(host, "kimi.com")) return "Moonshot";
+        if (IsExactDomainOrSubdomain(host, "zhipuai.cn") || IsExactDomainOrSubdomain(host, "bigmodel.cn")) return "ZhipuAI";
+        if (IsExactDomainOrSubdomain(host, "dashscope.aliyuncs.com") || IsExactDomainOrSubdomain(host, "tongyi.aliyun.com") || IsExactDomainOrSubdomain(host, "qwenlm.aliyun.com")) return "Alibaba";
+        if (IsExactDomainOrSubdomain(host, "siliconflow.cn")) return "SiliconFlow";
+        if (host.EndsWith("doubao.com", StringComparison.OrdinalIgnoreCase)) return "Doubao";
+        if (IsExactDomainOrSubdomain(host, "yiyan.baidu.com") || IsExactDomainOrSubdomain(host, "aip.baidubce.com")) return "Baidu";
+        if (IsExactDomainOrSubdomain(host, "xinghuo.xfyun.cn")) return "iFlytek";
 
         return "Unknown LLM";
     }
 
     private static bool IsExactDomainOrSubdomain(string host, string allowedDomain)
     {
-        if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(allowedDomain))
-            return false;
-
+        if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(allowedDomain)) return false;
         var hostLower = host.ToLowerInvariant();
         var domainLower = allowedDomain.ToLowerInvariant();
-
-        if (hostLower.Equals(domainLower, StringComparison.Ordinal))
-            return true;
-
-        if (hostLower.EndsWith("." + domainLower, StringComparison.Ordinal) && hostLower.Length > domainLower.Length + 1)
-            return true;
-
+        if (hostLower.Equals(domainLower, StringComparison.Ordinal)) return true;
+        if (hostLower.EndsWith("." + domainLower, StringComparison.Ordinal) && hostLower.Length > domainLower.Length + 1) return true;
         return false;
     }
 
@@ -234,22 +192,10 @@ public static class TokenExtractor
                     args.TokenHashPrefix = ComputeTokenPrefix(value.Substring(7).Trim(), provider);
                     return args;
                 }
-                else if (value.StartsWith("Bearer-", StringComparison.OrdinalIgnoreCase))
-                {
-                    args.TokenType = "Bearer";
-                    args.TokenHashPrefix = ComputeTokenPrefix(value, provider);
-                    return args;
-                }
             }
             else if (name == "api-key" || name == "apikey" || name == "x-api-key")
             {
                 args.TokenType = "ApiKey";
-                args.TokenHashPrefix = ComputeTokenPrefix(value, provider);
-                return args;
-            }
-            else if (name == "x-auth-token" || name == "x-access-token")
-            {
-                args.TokenType = "AuthToken";
                 args.TokenHashPrefix = ComputeTokenPrefix(value, provider);
                 return args;
             }
@@ -291,10 +237,7 @@ public static class TokenExtractor
                 args.Tokens = estimatedPromptTokens + estimatedCompletionTokens;
                 args.Model = "Doubao";
                 
-                if (args.Tokens > 0)
-                {
-                    return args;
-                }
+                if (args.Tokens > 0) return args;
             }
 
             int totalTokens = 0;
@@ -302,37 +245,21 @@ public static class TokenExtractor
             int completionTokens = 0;
 
             if (root.TryGetProperty("usage", out var usage))
-            {
                 ExtractTokensFromUsageObject(usage, ref totalTokens, ref promptTokens, ref completionTokens);
-            }
 
             if (totalTokens == 0 && root.TryGetProperty("token_count", out var tokenCount))
             {
                 if (tokenCount.ValueKind == JsonValueKind.Object)
-                {
                     ExtractTokensFromUsageObject(tokenCount, ref totalTokens, ref promptTokens, ref completionTokens);
-                }
                 else if (tokenCount.ValueKind == JsonValueKind.Number)
-                {
                     totalTokens = tokenCount.GetInt32();
-                }
-            }
-
-            if (totalTokens == 0 && root.TryGetProperty("statistics", out var statistics))
-            {
-                if (statistics.TryGetProperty("usage", out var statsUsage))
-                {
-                    ExtractTokensFromUsageObject(statsUsage, ref totalTokens, ref promptTokens, ref completionTokens);
-                }
             }
 
             if (totalTokens == 0 && root.TryGetProperty("input_tokens", out var inputTokens))
             {
                 promptTokens = inputTokens.GetInt32();
                 if (root.TryGetProperty("output_tokens", out var outputTokens))
-                {
                     completionTokens = outputTokens.GetInt32();
-                }
                 totalTokens = promptTokens + completionTokens;
             }
 
@@ -344,56 +271,24 @@ public static class TokenExtractor
             }
 
             if (root.TryGetProperty("model", out var modelElem))
-            {
                 args.Model = modelElem.GetString();
-            }
 
-            if (args.Tokens > 0)
-            {
-                return args;
-            }
+            if (args.Tokens > 0) return args;
 
             return null;
         }
-        catch (JsonException)
-        {
-            return null;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
+        catch (JsonException) { return null; }
+        catch (Exception) { return null; }
     }
 
     private static void ExtractTokensFromUsageObject(JsonElement usage, ref int totalTokens, ref int promptTokens, ref int completionTokens)
     {
-        if (usage.TryGetProperty("total_tokens", out var totalElem))
-        {
-            totalTokens = totalElem.GetInt32();
-        }
-
-        if (usage.TryGetProperty("prompt_tokens", out var promptElem))
-        {
-            promptTokens = promptElem.GetInt32();
-        }
-        else if (usage.TryGetProperty("input_tokens", out var inputElem))
-        {
-            promptTokens = inputElem.GetInt32();
-        }
-
-        if (usage.TryGetProperty("completion_tokens", out var completionElem))
-        {
-            completionTokens = completionElem.GetInt32();
-        }
-        else if (usage.TryGetProperty("output_tokens", out var outputElem))
-        {
-            completionTokens = outputElem.GetInt32();
-        }
-
-        if (totalTokens == 0 && (promptTokens > 0 || completionTokens > 0))
-        {
-            totalTokens = promptTokens + completionTokens;
-        }
+        if (usage.TryGetProperty("total_tokens", out var totalElem)) totalTokens = totalElem.GetInt32();
+        if (usage.TryGetProperty("prompt_tokens", out var promptElem)) promptTokens = promptElem.GetInt32();
+        else if (usage.TryGetProperty("input_tokens", out var inputElem)) promptTokens = inputElem.GetInt32();
+        if (usage.TryGetProperty("completion_tokens", out var completionElem)) completionTokens = completionElem.GetInt32();
+        else if (usage.TryGetProperty("output_tokens", out var outputElem)) completionTokens = outputElem.GetInt32();
+        if (totalTokens == 0 && (promptTokens > 0 || completionTokens > 0)) totalTokens = promptTokens + completionTokens;
     }
 
     public static TokenExtractedEventArgs? ExtractTokensFromStreamingChunk(string chunk, string url)
@@ -408,24 +303,15 @@ public static class TokenExtractor
             while (start < span.Length)
             {
                 var newLineIndex = span.Slice(start).IndexOf('\n');
-                var lineSpan = newLineIndex == -1 
-                    ? span.Slice(start) 
-                    : span.Slice(start, newLineIndex);
-                
+                var lineSpan = newLineIndex == -1 ? span.Slice(start) : span.Slice(start, newLineIndex);
                 start += newLineIndex == -1 ? span.Length - start : newLineIndex + 1;
                 
-                if (lineSpan.IsWhiteSpace() || lineSpan.IsEmpty)
-                    continue;
-                
-                if (!lineSpan.StartsWith("data:"))
-                    continue;
-                
-                if (lineSpan.Length <= 5)
-                    continue;
+                if (lineSpan.IsWhiteSpace() || lineSpan.IsEmpty) continue;
+                if (!lineSpan.StartsWith("data:")) continue;
+                if (lineSpan.Length <= 5) continue;
                 
                 var jsonPart = lineSpan.Slice(5).Trim();
-                if (jsonPart.SequenceEqual("[DONE]".AsSpan()))
-                    continue;
+                if (jsonPart.SequenceEqual("[DONE]".AsSpan())) continue;
                 
                 var jsonPartString = jsonPart.ToString();
                 
@@ -433,63 +319,23 @@ public static class TokenExtractor
                 var root = doc.RootElement;
 
                 if (root.TryGetProperty("usage", out var usage))
-                {
-                    return ExtractTokensFromResponse($"{\"usage\":{usage.GetRawText()}}", url);
-                }
+                    return ExtractTokensFromResponse($"{{\"usage\":{usage.GetRawText()}}}", url);
             }
 
             return null;
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
     }
 
     private static class TokenEstimator
     {
         private const double ChineseCharsPerToken = 1.5;
         private const double EnglishCharsPerToken = 4.0;
-        private const double NumberCharsPerToken = 3.0;
-        private const double SymbolCharsPerToken = 2.5;
 
         public static int EstimateTokens(int charCount, bool isChinese = true)
         {
             var charsPerToken = isChinese ? ChineseCharsPerToken : EnglishCharsPerToken;
             return (int)Math.Ceiling(charCount / charsPerToken * 1.1);
-        }
-
-        public static int EstimateTokensFromText(string? text)
-        {
-            if (string.IsNullOrEmpty(text)) return 0;
-
-            int chineseCount = 0, englishCount = 0, numberCount = 0, symbolCount = 0;
-
-            foreach (char c in text)
-            {
-                if (IsChineseCharacter(c))
-                    chineseCount++;
-                else if (char.IsLetter(c))
-                    englishCount++;
-                else if (char.IsDigit(c))
-                    numberCount++;
-                else if (!char.IsWhiteSpace(c))
-                    symbolCount++;
-            }
-
-            var estimated = chineseCount / ChineseCharsPerToken +
-                            englishCount / EnglishCharsPerToken +
-                            numberCount / NumberCharsPerToken +
-                            symbolCount / SymbolCharsPerToken;
-
-            return (int)Math.Ceiling(estimated * 1.1);
-        }
-
-        private static bool IsChineseCharacter(char c)
-        {
-            return c >= '\u4E00' && c <= '\u9FFF' ||
-                   c >= '\u3400' && c <= '\u4DBF' ||
-                   c >= '\uF900' && c <= '\uFAFF';
         }
     }
 
@@ -503,25 +349,20 @@ public static class TokenExtractor
 
         public static byte[] GetOrCreateSalt()
         {
-            if (_cachedSalt != null)
-                return _cachedSalt;
+            if (_cachedSalt != null) return _cachedSalt;
 
             lock (_lock)
             {
-                if (_cachedSalt != null)
-                    return _cachedSalt;
+                if (_cachedSalt != null) return _cachedSalt;
 
                 if (File.Exists(SaltFilePath))
                 {
                     try
                     {
                         _cachedSalt = File.ReadAllBytes(SaltFilePath);
-                        if (_cachedSalt.Length >= 32)
-                            return _cachedSalt;
+                        if (_cachedSalt.Length >= 32) return _cachedSalt;
                     }
-                    catch
-                    {
-                    }
+                    catch { }
                 }
 
                 _cachedSalt = new byte[32];
@@ -530,9 +371,7 @@ public static class TokenExtractor
 
                 var directory = Path.GetDirectoryName(SaltFilePath);
                 if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                {
                     Directory.CreateDirectory(directory);
-                }
                 File.WriteAllBytes(SaltFilePath, _cachedSalt);
 
                 return _cachedSalt;
@@ -555,9 +394,7 @@ public static class TokenExtractor
             Buffer.BlockCopy(providerBytes, 0, combinedSalt, salt.Length, providerBytes.Length);
         }
         else
-        {
             combinedSalt = salt;
-        }
 
         using var hmac = new HMACSHA256(combinedSalt);
         var hash = hmac.ComputeHash(System.Text.Encoding.UTF8.GetBytes(token));
