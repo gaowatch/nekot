@@ -1,18 +1,10 @@
-using System.Collections.Generic;
-
 namespace NekoT.Desktop.ViewModels;
 
-public class ForwardingServiceConfig
+public static class ForwardingServiceConfig
 {
-    public List<ProviderEndpoint> Endpoints { get; set; } = new();
-    public int MaxRetries { get; set; } = 3;
-    public int TimeoutSeconds { get; set; } = 30;
-    public bool EnableLogging { get; set; } = true;
-}
-
-public class ProviderEndpoint
-{
-    public string ProviderName { get; set; } = string.Empty;
-    public string BaseUrl { get; set; } = string.Empty;
-    public Dictionary<string, string> Headers { get; set; } = new();
+    public const string ProxyAddress = "http://127.0.0.1:8787";
+    public const string StatsEndpoint = "http://127.0.0.1:8788/stats";
+    public const int StatsPollingIntervalMs = 1000;
+    public const int HttpClientTimeoutSeconds = 2;
+    public const string ServiceType = "ForwardingService";
 }

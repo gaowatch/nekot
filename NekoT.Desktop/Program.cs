@@ -27,7 +27,6 @@ class Program
 
         if (args.Contains("--restart"))
         {
-            System.Diagnostics.Debug.WriteLine("[Program] Restart mode detected, waiting for old instance to exit...");
             Thread.Sleep(2000);
         }
 
@@ -56,7 +55,6 @@ class Program
         {
             try
             {
-                System.Diagnostics.Debug.WriteLine("[Program] Another instance is already running, exiting...");
                 var existingProcess = FindExistingProcess();
                 if (existingProcess != null)
                 {
@@ -69,13 +67,12 @@ class Program
             }
             finally
             {
-                _singleInstanceMutex?.Dispose();
+                _singleInstanceMutex.Dispose();
                 _singleInstanceMutex = null;
             }
             return false;
         }
 
-        System.Diagnostics.Debug.WriteLine("[Program] Single instance acquired");
         return true;
     }
 
@@ -123,7 +120,7 @@ class Program
             }
             finally
             {
-                _singleInstanceMutex?.Dispose();
+                _singleInstanceMutex.Dispose();
                 _singleInstanceMutex = null;
             }
         }
@@ -138,8 +135,6 @@ class Program
 
             Strings.Culture = culture;
             LanguageService.Instance.SwitchLanguage(savedLanguage);
-
-            System.Diagnostics.Debug.WriteLine($"[Program] Language initialized to: {savedLanguage}");
         }
         catch (Exception ex)
         {
