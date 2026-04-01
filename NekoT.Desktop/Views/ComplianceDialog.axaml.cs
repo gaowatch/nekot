@@ -17,7 +17,7 @@ public partial class ComplianceDialog : Window
 
     private void OnAgree(object? sender, RoutedEventArgs e)
     {
-        if (AgreeCheckBox?.IsChecked == true)
+        if (AgreeCheckBox.IsChecked == true)
         {
             UserSettingsService.Instance.HasAcceptedDisclaimer = true;
             Close(true);
@@ -28,10 +28,5 @@ public partial class ComplianceDialog : Window
     {
         var complianceWindow = new ComplianceInfoWindow();
         complianceWindow.Show();
-    }
-
-    private void OnCancel(object? sender, RoutedEventArgs e)
-    {
-        Close(false);
     }
 }

@@ -24,7 +24,7 @@ public partial class UpdateAvailableDialog : Window
         if (notesText != null && !string.IsNullOrEmpty(updateInfo.LatestVersion?.ReleaseNotes)) notesText.Text = updateInfo.LatestVersion.ReleaseNotes;
     }
 
-    private void OnUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { Close(true); }
+    private void OnUpdateClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close(true);
     private void OnSkipClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { if (_updateInfo?.LatestVersion?.Version != null) Services.UserSettingsService.Instance.SkippedVersions.Add(_updateInfo.LatestVersion.Version); Close(false); }
-    private void OnLaterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { Close(false); }
+    private void OnLaterClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) => Close(false);
 }

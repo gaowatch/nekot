@@ -1,5 +1,7 @@
+using System.Diagnostics;
+using Avalonia;
 using Avalonia.Controls;
-using NekoT.Desktop.Views;
+using Avalonia.Controls.ApplicationLifetimes;
 using NekoT.Desktop.Constants;
 using NekoT.Desktop.Services;
 using NekoT.Desktop.Utilities;
@@ -17,8 +19,19 @@ public partial class LanguageChangeDialog : Window
         _newLanguage = LanguageConstants.Chinese;
     }
 
-    public LanguageChangeDialog(string newLanguage) : this() { _newLanguage = newLanguage; }
+    public LanguageChangeDialog(string newLanguage) : this()
+    {
+        _newLanguage = newLanguage;
+    }
 
-    private void OnRestartClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { UserSettingsService.Instance.Language = _newLanguage; Close(); }
-    private void OnCancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e) { Close(); }
+    private void OnRestartClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        UserSettingsService.Instance.Language = _newLanguage;
+        Close();
+    }
+
+    private void OnCancelClick(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        Close();
+    }
 }
