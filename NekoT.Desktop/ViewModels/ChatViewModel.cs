@@ -266,9 +266,9 @@ public class ChatViewModel : ViewModelBase, IDisposable
     {
         var sb = new StringBuilder();
         sb.AppendLine(Strings.Export_ChatTitle);
-        sb.AppendLine($"{Strings.Export_ExportTime}: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-        sb.AppendLine($"{Strings.Export_Model}: {CurrentModel}");
-        sb.AppendLine($"{Strings.Export_SessionToken}: {SessionTokens}");
+        sb.AppendLine($"Export Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+        sb.AppendLine($"Model: {CurrentModel}");
+        sb.AppendLine($"Session Token: {SessionTokens}");
         sb.AppendLine($"Session Cost: {SessionCostDisplay}");
         sb.AppendLine();
         sb.AppendLine("---");
@@ -276,7 +276,7 @@ public class ChatViewModel : ViewModelBase, IDisposable
         
         foreach (var message in _messages)
         {
-            var roleDisplay = message.IsUser ? Strings.Export_User : Strings.Export_Assistant;
+            var roleDisplay = message.IsUser ? "User" : "Assistant";
             sb.AppendLine($"### {roleDisplay} ({message.Timestamp:HH:mm:ss})");
             sb.AppendLine();
             sb.AppendLine(message.Content);
