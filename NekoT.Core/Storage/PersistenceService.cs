@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 using System.Threading;
@@ -6,62 +7,83 @@ using System.Threading.Tasks;
 
 namespace NekoT.Core.Storage;
 
-public class PersistenceService : IPersistenceService, IAsyncDisposable
+public class PersistenceService : IPersistenceService, IDisposable
 {
     private readonly IAtomicFileEngine _fileEngine;
     private readonly IWriteBuffer<TokenUsageData> _writeBuffer;
-    private readonly Timer _autoSaveTimer;
     private readonly Timer _dayCheckTimer;
-    private DateTime _lastKnownDate;
-    private bool _isShuttingDown;
+    private readonly object _dirtyLock = new();
+    private readonly string _persistFilePath;
     private bool _disposed;
+    private DateTime _currentDate;
 
     public event EventHandler? DayChanged;
 
-    public PersistenceService(IAtomicFileEngine fileEngine)
+    public PersistenceService(string persistFilePath, TimeSpan flushInterval)
     {
-        _fileEngine = fileEngine ?? throw new ArgumentNullException(nameof(fileEngine));
-        _writeBuffer = new WriteBuffer<TokenUsageData>(TimeSpan.FromSeconds(30), SaveToDiskAsync);
-        _autoSaveTimer = new Timer(OnAutoSave, null, TimeSpan.FromSeconds(30), TimeSpan.FromSeconds(30));
-        _dayCheckTimer = new Timer(OnDayCheck, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
-        _lastKnownDate = DateTime.Today;
+        _persistFilePath = persistFilePath ?? throw new ArgumentNullException(nameof(persistFilePath));
+        _fileEngine = new AtomicFileEngine(_persistFilePath);
+        _writeBuffer = new WriteBuffer<TokenUsageData>(flushInterval, async data =>
+        {
+            await _fileEngine.WriteAsync(data);
+        });
+
+        _currentDate = DateTime.Now.Date;
+        _dayCheckTimer = new Timer(CheckDayChange, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
     }
 
     public void MarkDirty(TokenUsageData data)
     {
-        if (_isShuttingDown || _disposed) return;
+        if (_disposed) return;
         _writeBuffer.MarkDirty(data);
     }
 
     public async Task<TokenUsageData> LoadAsync()
     {
-        var data = await _fileEngine.ReadAsync<TokenUsageData>();
-        if (data == null) return new TokenUsageData { LastSavedTime = DateTime.UtcNow, LastRecordDate = DateTime.Today };
-        if (data.LastRecordDate.Date < DateTime.Today)
+        try
         {
-            data.TodayTokenCount = 0;
-            data.TodayRequestCount = 0;
-            data.BarDataPoints?.Clear();
-            data.LastRecordDate = DateTime.Today;
+            var data = await _fileEngine.ReadAsync<TokenUsageData>();
+            if (data != null)
+            {
+                _currentDate = data.LastRecordDate.Date;
+                return data;
+            }
         }
-        return data;
-    }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[PersistenceService] Load failed: {ex.Message}");
+        }
 
-    private async void OnAutoSave(object? state) { if (!_isShuttingDown && !_disposed) await _writeBuffer.FlushAsync(); }
-    private void OnDayCheck(object? state) { if (!_isShuttingDown && !_disposed && DateTime.Today > _lastKnownDate) { _lastKnownDate = DateTime.Today; DayChanged?.Invoke(this, EventArgs.Empty); } }
-    private async Task SaveToDiskAsync(TokenUsageData data) { data.LastSavedTime = DateTime.UtcNow; await _fileEngine.WriteAsync(data); }
+        return new TokenUsageData
+        {
+            Version = 1,
+            LastRecordDate = DateTime.Now.Date,
+            BarDataPoints = new List<BarDataPointInfo>()
+        };
+    }
 
     public async Task OnShutdownAsync()
     {
         if (_disposed) return;
-        _isShuttingDown = true;
-        await _autoSaveTimer.DisposeAsync();
-        await _dayCheckTimer.DisposeAsync();
         await _writeBuffer.FlushAsync();
     }
 
-    public async ValueTask DisposeAsync()
+    private void CheckDayChange(object? state)
     {
-        if (!_disposed) { await OnShutdownAsync(); if (_writeBuffer is IDisposable disposable) disposable.Dispose(); _disposed = true; }
+        var today = DateTime.Now.Date;
+        if (today != _currentDate)
+        {
+            _currentDate = today;
+            DayChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public void Dispose()
+    {
+        if (_disposed) return;
+        _disposed = true;
+
+        _dayCheckTimer.Dispose();
+        _writeBuffer.Dispose();
     }
 }
