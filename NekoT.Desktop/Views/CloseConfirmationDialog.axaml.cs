@@ -1,12 +1,7 @@
-using System;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using NekoT.Desktop.Resources;
-using NekoT.Desktop.Utilities;
 
 namespace NekoT.Desktop.Views;
-
-public enum CloseConfirmationResult { Cancel, Exit }
 
 public partial class CloseConfirmationDialog : Window
 {
@@ -16,31 +11,41 @@ public partial class CloseConfirmationDialog : Window
     public CloseConfirmationDialog()
     {
         InitializeComponent();
-        WindowIconHelper.RemoveIcon(this);
-        UpdateTaskCountText();
     }
 
-    private void UpdateTaskCountText()
+    private void InitializeComponent()
     {
-        if (ActiveTaskCount > 0)
-        {
-            TaskCountText.Text = $"{Strings.CloseConfirm_TaskCount}: {ActiveTaskCount}";
-            TaskCountText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#FF9800"));
-        }
-        else
-        {
-            TaskCountText.Text = Strings.CloseConfirm_TaskCountNone;
-            TaskCountText.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#4CAF50"));
-        }
+        Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
     }
 
-    public static CloseConfirmationResult Show(Window owner, int activeTaskCount = 0)
+    protected override void OnLoaded()
     {
-        var dialog = new CloseConfirmationDialog { ActiveTaskCount = activeTaskCount };
-        dialog.ShowDialog(owner);
-        return dialog.Result;
+        base.OnLoaded();
+        this.FindControl<TextBlock>("ActiveTaskCountText")!.Text = ActiveTaskCount.ToString();
     }
 
-    private void OnCancelClick(object? sender, RoutedEventArgs e) { Result = CloseConfirmationResult.Cancel; Close(); }
-    private void OnExitClick(object? sender, RoutedEventArgs e) { Result = CloseConfirmationResult.Exit; Close(); }
+    private void OnConfirmClicked(object? sender, RoutedEventArgs e)
+    {
+        Result = CloseConfirmationResult.Confirm;
+        Close();
+    }
+
+    private void OnCancelClicked(object? sender, RoutedEventArgs e)
+    {
+        Result = CloseConfirmationResult.Cancel;
+        Close();
+    }
+
+    private void OnMinimizeClicked(object? sender, RoutedEventArgs e)
+    {
+        Result = CloseConfirmationResult.MinimizeToTray;
+        Close();
+    }
+}
+
+public enum CloseConfirmationResult
+{
+    Cancel,
+    Confirm,
+    MinimizeToTray
 }
