@@ -1,82 +1,57 @@
 using System;
-using System.Threading;
+using System.Collections.Concurrent;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace NekoT.Core.Storage;
 
-public interface IWriteBuffer<T>
+public class WriteBuffer : IDisposable
 {
-    void MarkDirty(T data);
-    Task FlushAsync();
-    bool IsDirty { get; }
-    DateTime LastFlushTime { get; }
-}
-
-public class WriteBuffer<T> : IWriteBuffer<T>, IDisposable
-{
-    private T? _buffer;
-    private bool _isDirty;
-    private DateTime _lastFlushTime;
-    private readonly Timer _flushTimer;
-    private readonly SemaphoreSlim _lock = new(1, 1);
-    private readonly Func<T, Task> _flushAction;
+    private readonly string _filePath;
+    private readonly ConcurrentQueue<string> _queue;
+    private readonly Task _flushTask;
+    private readonly CancellationTokenSource _cts;
     private readonly TimeSpan _flushInterval;
     private bool _disposed;
 
-    public bool IsDirty => _isDirty;
-    public DateTime LastFlushTime => _lastFlushTime;
-
-    public WriteBuffer(TimeSpan flushInterval, Func<T, Task> flushAction)
+    public WriteBuffer(string filePath, TimeSpan? flushInterval = null)
     {
-        _flushInterval = flushInterval;
-        _flushAction = flushAction ?? throw new ArgumentNullException(nameof(flushAction));
-        _lastFlushTime = DateTime.UtcNow;
-        _flushTimer = new Timer(OnTimerCallback, null, flushInterval, flushInterval);
+        _filePath = filePath;
+        _queue = new ConcurrentQueue<string>();
+        _flushInterval = flushInterval ?? TimeSpan.FromSeconds(1);
+        _cts = new CancellationTokenSource();
+        _flushTask = Task.Run(FlushLoop);
     }
 
-    public void MarkDirty(T data)
+    public void Enqueue(string line)
     {
         if (_disposed) return;
-        lock (this)
+        _queue.Enqueue(line);
+    }
+
+    private async Task FlushLoop()
+    {
+        while (!_cts.Token.IsCancellationRequested)
         {
-            _buffer = data;
-            _isDirty = true;
+            await Task.Delay(_flushInterval, _cts.Token).ContinueWith(t => { }, TaskContinuationOptions.OnlyOnRanToCompletion);
+            Flush();
         }
     }
 
-    private async void OnTimerCallback(object? state)
+    public void Flush()
     {
-        if (_disposed || !_isDirty) return;
-        await FlushAsync();
-    }
-
-    public async Task FlushAsync()
-    {
-        if (_disposed) return;
-        await _lock.WaitAsync();
-        try
-        {
-            if (!_isDirty || _buffer == null) return;
-            await _flushAction(_buffer);
-            _isDirty = false;
-            _lastFlushTime = DateTime.UtcNow;
-        }
-        finally
-        {
-            _lock.Release();
-        }
+        if (_queue.IsEmpty) return;
+        var lines = new List<string>();
+        while (_queue.TryDequeue(out var line)) lines.Add(line);
+        if (lines.Count > 0) File.AppendAllLines(_filePath, lines);
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-        _flushTimer.Dispose();
-        if (_isDirty && _buffer != null)
-        {
-            try { FlushAsync().GetAwaiter().GetResult(); }
-            catch { }
-        }
-        _lock.Dispose();
+        _cts.Cancel();
+        Flush();
+        _cts.Dispose();
     }
 }

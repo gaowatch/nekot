@@ -1,89 +1,54 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace NekoT.Core.Storage;
 
-public class PersistenceService : IPersistenceService, IDisposable
+public class PersistenceService : IPersistenceService
 {
-    private readonly IAtomicFileEngine _fileEngine;
-    private readonly IWriteBuffer<TokenUsageData> _writeBuffer;
-    private readonly Timer _dayCheckTimer;
-    private readonly object _dirtyLock = new();
-    private readonly string _persistFilePath;
-    private bool _disposed;
-    private DateTime _currentDate;
+    private readonly string _basePath;
+    private readonly Dictionary<Type, IStorageAdapter> _adapters;
 
-    public event EventHandler? DayChanged;
-
-    public PersistenceService(string persistFilePath, TimeSpan flushInterval)
+    public PersistenceService(string basePath)
     {
-        _persistFilePath = persistFilePath ?? throw new ArgumentNullException(nameof(persistFilePath));
-        _fileEngine = new AtomicFileEngine(_persistFilePath);
-        _writeBuffer = new WriteBuffer<TokenUsageData>(flushInterval, async data =>
-        {
-            await _fileEngine.WriteAsync(data);
-        });
-
-        _currentDate = DateTime.Now.Date;
-        _dayCheckTimer = new Timer(CheckDayChange, null, TimeSpan.FromMinutes(1), TimeSpan.FromMinutes(1));
+        _basePath = basePath;
+        _adapters = new Dictionary<Type, IStorageAdapter>();
+        if (!Directory.Exists(_basePath)) Directory.CreateDirectory(_basePath);
     }
 
-    public void MarkDirty(TokenUsageData data)
-    {
-        if (_disposed) return;
-        _writeBuffer.MarkDirty(data);
-    }
+    public void RegisterAdapter<T>(IStorageAdapter<T> adapter) where T : class => _adapters[typeof(T)] = adapter;
 
-    public async Task<TokenUsageData> LoadAsync()
+    public async Task<T?> LoadAsync<T>() where T : class
     {
-        try
+        if (_adapters.TryGetValue(typeof(T), out var adapter))
         {
-            var data = await _fileEngine.ReadAsync<TokenUsageData>();
-            if (data != null)
-            {
-                _currentDate = data.LastRecordDate.Date;
-                return data;
-            }
+            return await ((IStorageAdapter<T>)adapter).LoadAsync();
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[PersistenceService] Load failed: {ex.Message}");
-        }
-
-        return new TokenUsageData
-        {
-            Version = 1,
-            LastRecordDate = DateTime.Now.Date,
-            BarDataPoints = new List<BarDataPointInfo>()
-        };
+        return null;
     }
 
-    public async Task OnShutdownAsync()
+    public async Task SaveAsync<T>(T data) where T : class
     {
-        if (_disposed) return;
-        await _writeBuffer.FlushAsync();
-    }
-
-    private void CheckDayChange(object? state)
-    {
-        var today = DateTime.Now.Date;
-        if (today != _currentDate)
+        if (_adapters.TryGetValue(typeof(T), out var adapter))
         {
-            _currentDate = today;
-            DayChanged?.Invoke(this, EventArgs.Empty);
+            await ((IStorageAdapter<T>)adapter).SaveAsync(data);
         }
     }
+}
 
-    public void Dispose()
-    {
-        if (_disposed) return;
-        _disposed = true;
+public interface IPersistenceService
+{
+    Task<T?> LoadAsync<T>() where T : class;
+    Task SaveAsync<T>(T data) where T : class;
+}
 
-        _dayCheckTimer.Dispose();
-        _writeBuffer.Dispose();
-    }
+public interface IStorageAdapter
+{
+}
+
+public interface IStorageAdapter<T> : IStorageAdapter where T : class
+{
+    Task<T?> LoadAsync();
+    Task SaveAsync(T data);
 }
