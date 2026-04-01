@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace NekoT.Core.Hosting;
 
@@ -33,10 +34,7 @@ public class ServiceHostManager
             listener.Stop();
             return true;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
     public async Task<bool> IsServiceRunning(int port)
@@ -46,43 +44,21 @@ public class ServiceHostManager
             using var client = new TcpClient();
             var connectTask = client.ConnectAsync(IPAddress.Loopback, port);
             var timeoutTask = Task.Delay(1000);
-
             var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-            if (completedTask == timeoutTask)
-            {
-                return false;
-            }
-
+            if (completedTask == timeoutTask) return false;
             return client.Connected;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
-    public async Task<bool> IsServiceRunning()
-    {
-        return await IsServiceRunning(_defaultPort);
-    }
+    public async Task<bool> IsServiceRunning() => await IsServiceRunning(_defaultPort);
 
-    public string GetServiceUrl(int port)
-    {
-        return $"http://127.0.0.1:{port}";
-    }
-
-    public string GetServiceUrl()
-    {
-        return GetServiceUrl(_defaultPort);
-    }
+    public string GetServiceUrl(int port) => $"http://127.0.0.1:{port}";
+    public string GetServiceUrl() => GetServiceUrl(_defaultPort);
 
     public async Task<int> GetAvailablePortOrDefaultAsync()
     {
-        if (await IsServiceRunning(_defaultPort))
-        {
-            return _defaultPort;
-        }
-
+        if (await IsServiceRunning(_defaultPort)) return _defaultPort;
         return FindAvailablePort();
     }
 }
