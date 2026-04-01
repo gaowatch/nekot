@@ -37,7 +37,7 @@ public class SettingsValidator : ISettingsValidator
         if (string.IsNullOrEmpty(url) || url == "about:blank") return ValidationResult.Success(propertyName);
         if (url.Length > maxLength) return ValidationResult.Failure(propertyName, string.Format(Res.Validation_UrlTooLong, maxLength));
         var lowerUrl = url.ToLowerInvariant();
-        foreach (var protocol in DangerousProtocols) if (lowerUrl.StartsWith(protocol)) return ValidationResult.Failure(propertyName, string.Format(Res.Validation_UrlInvalidProtocol, protocol));
+        foreach (var protocol in DangerousProtocols) { if (lowerUrl.StartsWith(protocol)) return ValidationResult.Failure(propertyName, string.Format(Res.Validation_UrlInvalidProtocol, protocol)); }
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return ValidationResult.Failure(propertyName, Res.Validation_UrlInvalidFormat);
         if (!uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) && !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) && !uri.Scheme.Equals("about", StringComparison.OrdinalIgnoreCase)) return ValidationResult.Failure(propertyName, Res.Validation_ProtocolNotSupported);
         return ValidationResult.Success(propertyName);
@@ -48,7 +48,7 @@ public class SettingsValidator : ISettingsValidator
         if (string.IsNullOrEmpty(url)) return ValidationResult.Success("ProxyUrl");
         if (url.Length > 512) return ValidationResult.Failure("ProxyUrl", Res.Validation_ProxyUrlTooLong);
         var lowerUrl = url.ToLowerInvariant();
-        foreach (var protocol in DangerousProtocols) if (lowerUrl.StartsWith(protocol)) return ValidationResult.Failure("ProxyUrl", string.Format(Res.Validation_ProxyUrlInvalidProtocol, protocol));
+        foreach (var protocol in DangerousProtocols) { if (lowerUrl.StartsWith(protocol)) return ValidationResult.Failure("ProxyUrl", string.Format(Res.Validation_ProxyUrlInvalidProtocol, protocol)); }
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return ValidationResult.Failure("ProxyUrl", Res.Validation_ProxyUrlInvalidFormat);
         if (!uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase) && !uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) && !uri.Scheme.Equals("socks", StringComparison.OrdinalIgnoreCase) && !uri.Scheme.Equals("socks5", StringComparison.OrdinalIgnoreCase)) return ValidationResult.Failure("ProxyUrl", Res.Validation_ProxyProtocolNotSupported);
         return ValidationResult.Success("ProxyUrl");
@@ -64,11 +64,5 @@ public class SettingsValidator : ISettingsValidator
     }
 
     private string? SanitizeUrl(string? url) { if (string.IsNullOrWhiteSpace(url)) return url; return url.Trim().Replace("\0", string.Empty); }
-
-    private string? SanitizeUserAgent(string? userAgent)
-    {
-        if (string.IsNullOrWhiteSpace(userAgent)) return userAgent;
-        var sanitized = new string(userAgent.Where(c => !char.IsControl(c) && c != '<' && c != '>' && c != '"' && c != '\'').ToArray());
-        return sanitized.Length > 500 ? sanitized.Substring(0, 500) : sanitized;
-    }
+    private string? SanitizeUserAgent(string? userAgent) { if (string.IsNullOrWhiteSpace(userAgent)) return userAgent; var sanitized = new string(userAgent.Where(c => !char.IsControl(c) && c != '<' && c != '>' && c != '"' && c != '\'').ToArray()); return sanitized.Length > 500 ? sanitized.Substring(0, 500) : sanitized; }
 }
