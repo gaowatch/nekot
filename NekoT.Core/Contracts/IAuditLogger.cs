@@ -11,17 +11,7 @@ public interface IAuditLogger
     IEnumerable<AuditLogEntry> GetRecentLogs(int count = 100);
 }
 
-public enum AuditAction
-{
-    SettingChanged,
-    SettingSaved,
-    SettingReset,
-    DataExported,
-    DataImported,
-    DataCleared,
-    SecurityEvent,
-    ValidationFailed
-}
+public enum AuditAction { SettingChanged, SettingSaved, SettingReset, DataExported, DataImported, DataCleared, SecurityEvent, ValidationFailed }
 
 public class AuditLogEntry
 {
