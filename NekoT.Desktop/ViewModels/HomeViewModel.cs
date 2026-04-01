@@ -62,37 +62,3 @@ public class HomeViewModel : ViewModelBase
         return searchUrl;
     }
 }
-
-public class HomeViewModel : ViewModelBase
-{
-    private string _searchQuery = "";
-
-    public event EventHandler<string>? NavigateRequested;
-
-    public string SearchQuery
-    {
-        get => _searchQuery;
-        set => SetField(ref _searchQuery, value);
-    }
-
-    public ICommand NavigateCommand => new RelayCommand(_ =>
-    {
-        var url = GetNavigateUrl(SearchQuery);
-        NavigateRequested?.Invoke(this, url);
-    });
-
-    public string GetNavigateUrl(string query)
-    {
-        query = query?.Trim() ?? "";
-        if (string.IsNullOrEmpty(query))
-        {
-            var homePage = UserSettingsService.Instance.HomePage;
-            if (!string.IsNullOrEmpty(homePage) && homePage != "about:blank") return homePage;
-            return "https://www.google.com";
-        }
-
-        if (query.StartsWith("http://") || query.StartsWith("https://")) return query;
-        if (query.Contains(".") && !query.Contains(" ")) return $"https://{query}";
-        return $"https://www.google.com/search?q={Uri.EscapeDataString(query)}";
-    }
-}

@@ -67,6 +67,7 @@ public class ChatViewModel : ViewModelBase, IDisposable
     public event EventHandler? MessagesChanged;
 
     public ObservableCollection<ChatMessage> Messages => _messages;
+
     public int MessageCount => _messages.Count;
 
     public string InputText
