@@ -1,104 +1,120 @@
 # NekoT Token Monitor
 
-**v0.1.0 早期开源预览版**
+**v0.1.0 Early Open Source Preview**
 
 ---
 
-## 📥 国内用户直接下载入口
+## 🤖 AI-Assisted Development Declaration
 
-**👉 [点击前往 Releases 页面下载最新版本](https://github.com/gaowatch/nekot/releases)**
+This project adopts an **AI-Assisted Development** model, where the core code architecture is designed by human developers, and AI assistants help with code implementation, optimization, and documentation.
 
-> 💡 **提示**：下载 exe 双击即可使用，无需编译。
+**AI-Assisted Development Tools**:
+- Code Generation & Refactoring: Claude, GPT-4, and other LLMs
+- Code Review & Optimization: AI-assisted Code Review
+- Documentation: AI-assisted technical documentation generation
 
----
-
-## 📖 项目简介
-
-NekoT 是一款专为 AI 开发者和研究者设计的 Token 监控浏览器，支持实时监控多个 LLM 平台的 Token 使用情况。
-
-### ✨ 核心功能
-
-- 🔍 **实时 Token 监控** - 自动捕获和统计 AI 对话中的 Token 使用量
-- 🌐 **多平台支持** - 支持 OpenAI、Claude、DeepSeek、Kimi、智谱、豆包等主流平台
-- 📊 **使用统计** - 详细的 Token 使用记录和费用估算
-- 🔒 **安全存储** - API Key 本地加密存储，保护您的隐私
-- 🌍 **国际化** - 支持中文和英文界面
+**Development Philosophy**: Human-AI collaboration, AI empowerment, improved development efficiency and code quality.
 
 ---
 
-## ⚠️ 唯一原版
+## 📥 Direct Download for Users in China
 
-**官方仓库**：`https://github.com/gaowatch/nekot`
+**👉 [Click here to visit the Releases page for the latest version](https://github.com/gaowatch/nekot/releases)**
 
-任何其他同名/相似软件均为仿品，请注意甄别。
-
----
-
-## ⚠️ 重要声明与使用限制
-
-1. **用途限制**：本工具仅用于**个人合法监控自身 LLM API 用量、本地 API 转发调试**，禁止用于任何违法、违规用途（包括但不限于盗刷他人 API Key、批量自动化攻击、翻墙、窃密等）。
-2. **责任划分**：使用者需自行遵守所在国家/地区的法律法规，以及对应大模型厂商的 API 使用协议/用户服务协议。**工具开发者不对任何使用者的违约、违法行为承担任何责任**。
-3. **数据安全**：本工具 100% 本地运行，**不收集、不存储、不上传任何用户敏感数据**（包括 API Key、Token、对话内容等），所有数据仅在用户本地设备内存中临时处理，程序退出后彻底销毁。
-4. **功能边界**：本工具仅提供纯透传转发能力，不提供任何绕过厂商风控、批量调用、多账号操作等违规功能。
+> 💡 **Tip**: Download the exe file and double-click to run, No compilation required.
 
 ---
 
-## 🔒 安全加密
+## 📖 Project Overview
 
-本项目采用 **AES-256-GCM 算法** 对敏感数据（如 Token、用户配置）进行加密保护：
-- AES-256 是美国 NSA 推荐用于绝密信息的加密标准，256 位密钥长度确保极高安全性
-- GCM 模式提供机密性、完整性和真实性三重保障，防止数据泄露与篡改
-- 加密实现依赖经过全球审计的开源加密库（如 OpenSSL），未使用自定义加密逻辑
-- 技术层面达到 CC EAL3+ 级别的加密安全要求（未进行正式认证）
+NekoT is a Token monitoring browser designed for AI developers and researchers, supporting real-time monitoring of Token usage across multiple LLM platforms.
+
+### ✨ Core Features
+
+- 🔍 **Real-time Token Monitoring** - Automatically capture and track Token usage in AI conversations
+- 🌐 **Multi-Platform Support** - Supports OpenAI, Claude, DeepSeek, Kimi, Zhipu, Doubao, and other major platforms
+- 📊 **Usage Statistics** - Detailed Token usage records and cost estimation
+- 🔒 **Secure Storage** - API Key encrypted locally to protect your privacy
+- 🌍 **Internationalization** - Supports both Chinese and English interfaces
 
 ---
 
-## 🚀 快速开始
+## ⚠️ Official Version
 
-### 方式一：直接运行（推荐小白用户）
+**Official Repository**: `https://github.com/gaowatch/nekot`
 
-1. 前往 [Releases](https://github.com/gaowatch/nekot/releases) 页面
-2. 下载最新版本的 `NekoT.Desktop.exe` 或压缩包
-3. 双击运行即可，无需安装
+Any other software with the same or similar name is a counterfeit. Please verify the authenticity.
 
-### 方式二：从源码编译
+---
+
+## ⚠️ Important Disclaimer and Usage Restrictions
+
+1. **Usage Limitation**: This tool is only for **personal legal monitoring of your own LLM API usage and local API forwarding debugging**. It is prohibited for any illegal or unauthorized purposes (including but not limited to stealing others' API Keys, automated batch attacks, bypassing restrictions, or data theft).
+
+2. **Liability**: Users must comply with local laws and regulations, as well as the API usage agreements/terms of service of the corresponding LLM providers. **The tool developers are not responsible for any user's breach of contract or illegal activities**.
+
+3. **Data Security**: This tool runs 100% locally. It **does not collect, store, or upload any user sensitive data** (including API Keys, Tokens, conversation content, etc.). All data is processed temporarily in the user's local device memory and completely destroyed after the program exits.
+
+4. **Functional Boundaries**: This tool only provides transparent forwarding capabilities and does not offer any features to bypass provider restrictions, batch operations, or multi-account operations.
+
+---
+
+## 🔒 Security Encryption
+
+This project uses **AES-256-GCM algorithm** to encrypt sensitive data (such as Tokens, user configurations):
+- AES-256 is the encryption standard recommended by the US NSA for top-secret information, with 256-bit key length ensuring extremely high security
+- GCM mode provides triple protection of confidentiality, integrity, and authenticity, preventing data leakage and tampering
+- Encryption implementation relies on globally audited open-source encryption libraries (such as OpenSSL), without custom encryption logic
+- Technically meets CC EAL3+ level encryption security requirements (not formally certified)
+
+---
+
+## 🚀 Quick Start
+
+### Option 1: Direct Run (Recommended for Beginners)
+
+1. Visit the [Releases](https://github.com/gaowatch/nekot/releases) page
+2. Download the latest version of `NekoT.Desktop.exe` or the compressed package
+3. Double-click to run, No installation required
+
+### Option 2: Build from Source
 
 ```bash
-# 克隆仓库
+# Clone the repository
 git clone https://github.com/gaowatch/nekot.git
 cd nekot
 
-# 还原依赖
+# Restore dependencies
 dotnet restore
 
-# 编译运行
+# Build and run
 dotnet run --project NekoT.Desktop
 ```
 
-### 系统要求
+### System Requirements
 
 - Windows 10/11 (x64)
 - .NET 8.0 Runtime
-- WebView2 Runtime（Windows 10/11 通常已预装）
+- WebView2 Runtime (usually pre-installed on Windows 10/11)
 
 ---
 
-## 📜 许可证
+## 📜 License
 
-本项目采用 [Apache License 2.0](LICENSE) 许可证开源。
-
----
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request！
+This project is open-sourced under the [Apache License 2.0](LICENSE).
 
 ---
 
-## 📞 联系方式
+## 🤝 Contributing
 
-如有问题或建议，请通过 [GitHub Issues](https://github.com/gaowatch/nekot/issues) 反馈。
+Issues and Pull Requests are welcome!
 
 ---
 
-**NekoT** - 让 Token 监控变得简单 🔐
+## 📞 Contact
+
+For questions or suggestions, please submit feedback via [GitHub Issues](https://github.com/gaowatch/nekot/issues).
+
+---
+
+**NekoT** - Making Token Monitoring Simple 🔐
