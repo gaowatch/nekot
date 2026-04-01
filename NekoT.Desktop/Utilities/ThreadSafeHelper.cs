@@ -1,37 +1,63 @@
 using System;
-using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 
 namespace NekoT.Desktop.Utilities;
 
 public static class ThreadSafeHelper
 {
-    public static T ThreadSafeGet<T>(ref T field, Func<T> getter)
+    public static void RunOnUiThread(Action action)
     {
-        return Thread.GetData(Thread.GetNamedDataSlot(typeof(T).Name + "_slot")) is T value 
-            ? value 
-            : getter();
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            action();
+        }
+        else
+        {
+            Dispatcher.UIThread.Post(action);
+        }
     }
 
-    public static void ThreadSafeSet<T>(ref T field, T value)
+    public static Task RunOnUiThreadAsync(Func<Task> func)
     {
-        Thread.SetData(Thread.GetNamedDataSlot(typeof(T).Name + "_slot"), value!);
-        field = value;
+        if (Dispatcher.UIThread.CheckAccess())
+        {
+            return func();
+        }
+        else
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            Dispatcher.UIThread.Post(async () =>
+            {
+                try
+                {
+                    await func();
+                    tcs.SetResult(true);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                }
+            });
+            return tcs.Task;
+        }
     }
 
-    public static async Task<T> WaitAsync<T>(this Task<T> task, CancellationToken cancellationToken)
+    public static void ObserveExceptions(this Task task, Action<Exception>? onError = null)
     {
-        var tcs = new TaskCompletionSource<T>();
-        using var registration = cancellationToken.Register(() => tcs.TrySetCanceled());
-        var completedTask = await Task.WhenAny(task, tcs.Task);
-        return await completedTask;
+        task.ContinueWith(t =>
+        {
+            if (t.Exception != null)
+            {
+                var exception = t.Exception.Flatten();
+                System.Diagnostics.Debug.WriteLine($"[ThreadSafeHelper] Observed exception: {exception}");
+                onError?.Invoke(exception);
+            }
+        }, TaskContinuationOptions.OnlyOnFaulted);
     }
 
-    public static async Task<bool> WaitAsync(this Task task, CancellationToken cancellationToken)
+    public static void SafeFireAndForget(this Task task, Action<Exception>? onError = null)
     {
-        var tcs = new TaskCompletionSource<bool>();
-        using var registration = cancellationToken.Register(() => tcs.TrySetCanceled());
-        var completedTask = await Task.WhenAny(task, tcs.Task);
-        return completedTask == task;
+        task.ObserveExceptions(onError);
     }
 }

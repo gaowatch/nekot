@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using NekoT.Desktop.ViewModels;
 
@@ -30,7 +29,7 @@ public class TabOverflowManager
     private const double CharWidthEstimate = 8;
 
     public TabOverflowResult CalculateVisibleTabs(
-        ObservableCollection<TabItemViewModel> tabs,
+        System.Collections.ObjectModel.ObservableCollection<TabItemViewModel> tabs,
         double availableWidth)
     {
         if (tabs == null)
