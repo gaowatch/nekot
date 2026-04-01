@@ -1,171 +1,101 @@
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
+using NekoT.Desktop.ViewModels;
+using NekoT.Desktop.Services;
 using System;
 using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
-using Avalonia.Controls;
-using Avalonia.Input;
-using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
-using Avalonia.Platform.Storage;
-using Avalonia.Threading;
-using NekoT.Desktop.ViewModels;
-using NekoT.Desktop.Resources;
 
 namespace NekoT.Desktop.Views;
 
 public partial class ChatView : UserControl
 {
-    private TextBlock? _hintText;
     private ChatViewModel? _viewModel;
-    private ScrollViewer? _messagesScrollViewer;
 
     public ChatView()
     {
         InitializeComponent();
         DataContextChanged += OnDataContextChanged;
-        Loaded += OnLoaded;
     }
 
     private void InitializeComponent()
     {
-        AvaloniaXamlLoader.Load(this);
-        _hintText = this.FindControl<TextBlock>("HintText");
-        _messagesScrollViewer = this.FindControl<ScrollViewer>("MessagesScrollViewer");
-    }
-
-    private void OnLoaded(object? sender, RoutedEventArgs e)
-    {
-        if (_messagesScrollViewer != null)
-        {
-            _messagesScrollViewer.ScrollToEnd();
-        }
+        Avalonia.Markup.Xaml.AvaloniaXamlLoader.Load(this);
     }
 
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
-        if (_viewModel != null)
-        {
-            _viewModel.ExportRequested -= OnExportRequested;
-            _viewModel.MessagesChanged -= OnMessagesChanged;
-        }
-
         _viewModel = DataContext as ChatViewModel;
-
-        if (_viewModel != null)
-        {
-            _viewModel.ExportRequested += OnExportRequested;
-            _viewModel.MessagesChanged += OnMessagesChanged;
-        }
     }
 
-    private void OnMessagesChanged(object? sender, EventArgs e)
+    private async void OnExportClick(object? sender, RoutedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        if (_viewModel == null) return;
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel == null) return;
+
+        var files = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
         {
-            if (_messagesScrollViewer != null)
-            {
-                _messagesScrollViewer.ScrollToEnd();
-            }
-        });
-    }
-
-    private async void OnExportRequested(object? sender, EventArgs e)
-    {
-        await ExportChatAsync();
-    }
-
-    private async Task ExportChatAsync()
-    {
-        if (_viewModel == null || _viewModel.Messages.Count == 0)
-            return;
-
-        var storageProvider = TopLevel.GetTopLevel(this)?.StorageProvider;
-        if (storageProvider == null)
-            return;
-
-        var file = await storageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
-        {
-            Title = Strings.Export_ChatHistory,
-            SuggestedFileName = $"chat_{DateTime.Now:yyyyMMdd_HHmmss}",
+            Title = "Export Chat",
+            SuggestedFileName = $"chat_export_{DateTime.Now:yyyyMMdd_HHmmss}",
             FileTypeChoices = new[]
             {
-                new FilePickerFileType(Strings.Export_Markdown) { Patterns = new[] { "*.md" } },
-                new FilePickerFileType(Strings.Export_JSON) { Patterns = new[] { "*.json" } },
-                new FilePickerFileType(Strings.Export_Text) { Patterns = new[] { "*.txt" } }
+                new FilePickerFileType("Markdown") { Patterns = new[] { "*.md" } },
+                new FilePickerFileType("JSON") { Patterns = new[] { "*.json" } },
+                new FilePickerFileType("Text") { Patterns = new[] { "*.txt" } }
             }
         });
 
-        if (file == null)
-            return;
-
-        try
+        if (files.Count > 0)
         {
-            var filePath = file.Path.LocalPath;
-            var extension = Path.GetExtension(filePath).ToLowerInvariant();
-            string content;
-
-            switch (extension)
-            {
-                case ".json":
-                    content = _viewModel.ExportToJson();
-                    break;
-                case ".md":
-                case ".txt":
-                default:
-                    content = _viewModel.ExportToMarkdown();
-                    break;
-            }
-
-            await File.WriteAllTextAsync(filePath, content);
-            _viewModel.OnExportCompleted(filePath);
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[ChatView] Export failed: {ex.Message}");
+            await ExportChatAsync(files[0].Path.LocalPath);
         }
     }
 
-    private void OnInputKeyDown(object? sender, KeyEventArgs e)
+    private async Task ExportChatAsync(string filePath)
     {
-        if (e.Key == Key.Enter)
+        if (_viewModel?.CurrentSession == null) return;
+
+        var extension = Path.GetExtension(filePath).ToLowerInvariant();
+        var content = extension switch
         {
-            if (e.KeyModifiers.HasFlag(KeyModifiers.Shift))
-            {
-                if (sender is TextBox textBox)
-                {
-                    var caretIndex = textBox.CaretIndex;
-                    var text = textBox.Text ?? string.Empty;
-                    textBox.Text = text.Insert(caretIndex, Environment.NewLine);
-                    textBox.CaretIndex = caretIndex + Environment.NewLine.Length;
-                    e.Handled = true;
-                }
-            }
-            else
-            {
-                if (DataContext is ChatViewModel viewModel)
-                {
-                    viewModel.SendMessage();
-                    e.Handled = true;
-                }
-            }
-        }
+            ".md" => ExportToMarkdown(),
+            ".json" => ExportToJson(),
+            _ => ExportToText()
+        };
+
+        await File.WriteAllTextAsync(filePath, content);
     }
 
-    private void OnInputGotFocus(object? sender, GotFocusEventArgs e)
+    private string ExportToMarkdown()
     {
-        if (_hintText != null)
+        if (_viewModel?.CurrentSession == null) return string.Empty;
+        var md = $"# Chat Export\n\nSession: {_viewModel.CurrentSession.Name}\n";
+        md += $"Created: {_viewModel.CurrentSession.CreatedAt:yyyy-MM-dd HH:mm:ss}\n\n---\n\n";
+        foreach (var msg in _viewModel.CurrentSession.Messages)
         {
-            _hintText.IsVisible = false;
+            var role = msg.Role == "assistant" ? "**Assistant**" : "**User**";
+            md += $"{role}:\n\n{msg.Content}\n\n---\n\n";
         }
+        return md;
     }
 
-    private void OnInputLostFocus(object? sender, RoutedEventArgs e)
+    private string ExportToJson()
     {
-        if (_hintText != null && DataContext is ChatViewModel viewModel)
+        if (_viewModel?.CurrentSession == null) return "[]";
+        return JsonSerializer.Serialize(_viewModel.CurrentSession, new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    private string ExportToText()
+    {
+        if (_viewModel?.CurrentSession == null) return string.Empty;
+        var txt = $"Chat Export\nSession: {_viewModel.CurrentSession.Name}\nCreated: {_viewModel.CurrentSession.CreatedAt:yyyy-MM-dd HH:mm:ss}\n\n";
+        foreach (var msg in _viewModel.CurrentSession.Messages)
         {
-            if (string.IsNullOrEmpty(viewModel.InputText) && viewModel.Messages.Count == 0)
-            {
-                _hintText.IsVisible = true;
-            }
+            txt += $"[{msg.Role.ToUpper()}]: {msg.Content}\n\n";
         }
+        return txt;
     }
 }
