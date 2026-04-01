@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="NekoT.Browser/NekoT.Browser.csproj" />
+  <Project Path="NekoT.Core/NekoT.Core.csproj" />
+  <Project Path="NekoT.Desktop/NekoT.Desktop.csproj" />
+  <Project Path="NekoT.Models/NekoT.Models.csproj" />
+  <Project Path="NekoT.Tests/NekoT.Tests.csproj" />
+</Solution>
