@@ -43,7 +43,7 @@ public static class WindowIconHelper
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"移除窗口图标失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Remove icon failed: {ex.Message}");
             }
         };
     }
@@ -56,14 +56,12 @@ public static class WindowIconHelper
             return;
 
         IntPtr hwnd = handle.Value;
-
         int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
 
         if (extendedStyle == 0)
             return;
 
         int newStyle = extendedStyle | WS_EX_DLGMODALFRAME;
-
         int result = SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
 
         if (result == 0)
@@ -90,7 +88,7 @@ public static class WindowIconHelper
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"恢复窗口图标失败: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"Restore icon failed: {ex.Message}");
             }
         };
     }
@@ -103,14 +101,12 @@ public static class WindowIconHelper
             return;
 
         IntPtr hwnd = handle.Value;
-
         int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
 
         if (extendedStyle == 0)
             return;
 
         int newStyle = extendedStyle & ~WS_EX_DLGMODALFRAME;
-
         SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
 
         SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
