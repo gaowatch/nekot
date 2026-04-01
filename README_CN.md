@@ -68,13 +68,13 @@ NekoT 是一款专为 AI 开发者和研究者设计的 Token 监控浏览器，
 
 ## 🚀 快速开始
 
-### 方式一：直接运行（推荐小白用户）
+### 方式一:直接运行（推荐小白用户）
 
 1. 前往 [Releases](https://github.com/gaowatch/nekot/releases) 页面
 2. 下载最新版本的 `NekoT.Desktop.exe` 或压缩包
 3. 双击运行即可，无需安装
 
-### 方式二：从源码编译
+### 方式二:从源码编译
 
 ```bash
 # 克隆仓库
