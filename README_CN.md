@@ -1,5 +1,7 @@
 # NekoT Token Monitor
 
+**[English Version](./README.md)**
+
 **v0.1.0 早期开源预览版**
 
 ---
