@@ -5,14 +5,48 @@ namespace NekoT.Models.Responses;
 
 public class ChatCompletionResponse
 {
-    [JsonPropertyName("id")] public string Id { get; set; } = string.Empty;
-    [JsonPropertyName("model")] public string Model { get; set; } = string.Empty;
-    [JsonPropertyName("usage")] public Usage? Usage { get; set; }
-    [JsonPropertyName("choices")] public List<Choice> Choices { get; set; } = new();
-    [JsonPropertyName("object")] public string Object { get; set; } = string.Empty;
-    [JsonPropertyName("created")] public long Created { get; set; }
-    [JsonIgnore] public string? Error { get; set; }
+    [JsonPropertyName("id")]
+    public string Id { get; set; } = string.Empty;
+    [JsonPropertyName("model")]
+    public string Model { get; set; } = string.Empty;
+    [JsonPropertyName("usage")]
+    public Usage? Usage { get; set; }
+    [JsonPropertyName("choices")]
+    public List<Choice> Choices { get; set; } = new();
+    [JsonPropertyName("object")]
+    public string Object { get; set; } = string.Empty;
+    [JsonPropertyName("created")]
+    public long Created { get; set; }
+    [JsonIgnore]
+    public string? Error { get; set; }
 }
 
-public class Choice { [JsonPropertyName("message")] public MessageChoice Message { get; set; } = new(); [JsonPropertyName("finish_reason")] public string FinishReason { get; set; } = string.Empty; [JsonPropertyName("index")] public int Index { get; set; } }
-public class MessageChoice { [JsonPropertyName("role")] public string Role { get; set; } = string.Empty; [JsonPropertyName("content")] public string Content { get; set; } = string.Empty; [JsonPropertyName("name")] public string? Name { get; set; } }
+public class Choice
+{
+    [JsonPropertyName("message")]
+    public MessageChoice Message { get; set; } = new();
+    [JsonPropertyName("finish_reason")]
+    public string FinishReason { get; set; } = string.Empty;
+    [JsonPropertyName("index")]
+    public int Index { get; set; }
+}
+
+public class MessageChoice
+{
+    [JsonPropertyName("role")]
+    public string Role { get; set; } = string.Empty;
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = string.Empty;
+    [JsonPropertyName("name")]
+    public string? Name { get; set; }
+}
+
+public class Usage
+{
+    [JsonPropertyName("prompt_tokens")]
+    public int PromptTokens { get; set; }
+    [JsonPropertyName("completion_tokens")]
+    public int CompletionTokens { get; set; }
+    [JsonPropertyName("total_tokens")]
+    public int TotalTokens { get; set; }
+}
