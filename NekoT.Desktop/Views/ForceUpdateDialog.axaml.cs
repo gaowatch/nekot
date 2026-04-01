@@ -44,12 +44,7 @@ public partial class ForceUpdateDialog : Window
         {
             var versionService = App.Services.GetRequiredService<IVersionService>();
             var success = await versionService.ApplyUpdateAsync();
-            if (success)
-            {
-                if (statusText != null) statusText.Text = Strings.Update_CompleteRestart;
-                await Task.Delay(2000);
-                if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown();
-            }
+            if (success) { if (statusText != null) statusText.Text = Strings.Update_CompleteRestart; await Task.Delay(2000); if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown(); }
             else { if (statusText != null) statusText.Text = Strings.Update_FailedManual; if (updateButton != null) updateButton.IsEnabled = true; if (exitButton != null) exitButton.IsEnabled = true; _isUpdating = false; }
         }
         catch (System.Exception ex) { if (statusText != null) statusText.Text = $"{Strings.Update_Failed}: {ex.Message}"; if (updateButton != null) updateButton.IsEnabled = true; if (exitButton != null) exitButton.IsEnabled = true; _isUpdating = false; }
