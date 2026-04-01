@@ -315,7 +315,7 @@ public class SecureStorage : ISecureStorage
         }
         catch (CryptographicException ex)
         {
-            Logger.TraceEvent(TraceEventType.Error, 1, $"Failed to decrypt secure storage: {ex.Message}");
+            Logger.TraceEvent(TraceEventType.Error, 1, $"Failed to decrypt secure storage (corrupted or tampered): {ex.Message}");
             return new Dictionary<string, string>();
         }
         catch (Exception ex)

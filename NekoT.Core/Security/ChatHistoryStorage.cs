@@ -142,7 +142,7 @@ public sealed class ChatHistoryStorage : IChatHistoryStorage, IDisposable
 
         foreach (var message in messages)
         {
-            var roleDisplay = message.Role == "user" ? "用户" : "助手";
+            var roleDisplay = message.Role == "user" ? "👤 用户" : "🤖 助手";
             sb.AppendLine($"### {roleDisplay} ({message.Timestamp:HH:mm:ss})");
             sb.AppendLine();
             sb.AppendLine(message.Content);
