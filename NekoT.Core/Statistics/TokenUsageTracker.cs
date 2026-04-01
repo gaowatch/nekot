@@ -14,18 +14,12 @@ public class TokenUsageTracker : IDisposable
 
     public event EventHandler<TokenUsageRecordedEventArgs>? TokenUsageRecorded;
 
-    public TokenUsageTracker()
-    {
-        _sessionStartTime = DateTime.Now;
-    }
+    public TokenUsageTracker() { _sessionStartTime = DateTime.Now; }
 
     public void RecordUsage(int inputTokens, int outputTokens)
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(TokenUsageTracker));
-
-        if (inputTokens < 0 || outputTokens < 0)
-            throw new ArgumentException("Token counts cannot be negative");
+        if (_disposed) throw new ObjectDisposedException(nameof(TokenUsageTracker));
+        if (inputTokens < 0 || outputTokens < 0) throw new ArgumentException("Token counts cannot be negative");
 
         lock (_lock)
         {
@@ -60,24 +54,11 @@ public class TokenUsageTracker : IDisposable
 
     public void Reset()
     {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(TokenUsageTracker));
-
-        lock (_lock)
-        {
-            _sessionInputTokens = 0;
-            _sessionOutputTokens = 0;
-            _sessionRequestCount = 0;
-        }
+        if (_disposed) throw new ObjectDisposedException(nameof(TokenUsageTracker));
+        lock (_lock) { _sessionInputTokens = 0; _sessionOutputTokens = 0; _sessionRequestCount = 0; }
     }
 
-    public void Dispose()
-    {
-        if (!_disposed)
-        {
-            _disposed = true;
-        }
-    }
+    public void Dispose() { if (!_disposed) _disposed = true; }
 }
 
 public class TokenUsageRecordedEventArgs : EventArgs
