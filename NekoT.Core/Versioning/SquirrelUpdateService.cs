@@ -1,73 +1,43 @@
 using System;
-using System.IO;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
-using NekoT.Core.Http;
-using NekoT.Core.Versioning;
+using NekoT.Core.Contracts;
 using NekoT.Models.Versioning;
+using Squirrel;
 
-namespace NekoT.Core.Browsing;
+namespace NekoT.Core.Versioning;
 
-public class SquirrelUpdateService : IVersionService
+public class SquirrelUpdateService : IVersionService, IDisposable
 {
-    private readonly HttpClient _httpClient;
-    private readonly string _updateUrl;
-    private readonly string _currentVersion;
+    private readonly UpdateManager? _updateManager;
+    private readonly IConfiguration _configuration;
+    private UpdateInfo? _lastUpdateInfo;
+    private bool _disposed;
 
     public SquirrelUpdateService(IConfiguration configuration)
     {
-        _httpClient = HttpClientManager.GetSharedClient();
-        _updateUrl = configuration["Update:Url"] ?? "https://nekot.example.com/update";
-        _currentVersion = configuration["App:Version"] ?? "1.0.0";
+        _configuration = configuration;
+        var updateUrl = configuration["Update:Url"] ?? "https://github.com/gaowatch/nekot/releases";
+        try { _updateManager = new UpdateManager(updateUrl); }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SquirrelUpdateService] Failed to create UpdateManager: {ex.Message}"); _updateManager = null; }
     }
 
     public async Task<UpdateCheckResult> CheckForUpdateAsync()
     {
-        try
-        {
-            var latestInfo = await _httpClient.GetStringAsync($"{_updateUrl}/latest");
-            var latest = System.Text.Json.JsonSerializer.Deserialize<VersionInfo>(latestInfo);
-
-            if (latest == null)
-                return new UpdateCheckResult { HasUpdate = false };
-
-            var needsUpdate = CompareVersions(_currentVersion, latest.Version) < 0;
-            return new UpdateCheckResult
-            {
-                HasUpdate = needsUpdate,
-                LatestVersion = latest,
-                CurrentVersion = _currentVersion
-            };
-        }
-        catch
-        {
-            return new UpdateCheckResult { HasUpdate = false };
-        }
+        if (_updateManager == null) return new UpdateCheckResult { HasUpdate = false };
+        try { _lastUpdateInfo = await _updateManager.CheckForUpdate(); return new UpdateCheckResult { HasUpdate = _lastUpdateInfo.ReleasesToApply.Count > 0, CurrentVersion = GetCurrentVersion(), LatestVersion = new VersionInfo { Version = _lastUpdateInfo.FutureReleaseEntry?.Version.ToString() ?? "Unknown", ReleaseDate = DateTime.Now }, IsForceUpdate = false }; }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SquirrelUpdateService] 检查更新失败: {ex.Message}"); return new UpdateCheckResult { HasUpdate = false }; }
     }
 
-    public string GetCurrentVersion() => _currentVersion;
+    public string GetCurrentVersion() => _configuration["Application:Version"] ?? "1.0.0";
 
-    public Task<bool> ApplyUpdateAsync()
+    public async Task<bool> ApplyUpdateAsync()
     {
-        return Task.FromResult(false);
+        if (_updateManager == null) return false;
+        try { if (_lastUpdateInfo == null || _lastUpdateInfo.ReleasesToApply.Count == 0) await CheckForUpdateAsync(); if (_lastUpdateInfo != null && _lastUpdateInfo.ReleasesToApply.Count > 0) { await _updateManager.UpdateApp(); return true; } return false; }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SquirrelUpdateService] 应用更新失败: {ex.Message}"); return false; }
     }
 
-    public bool IsUpdateAvailable()
-    {
-        return CheckForUpdateAsync().Result.HasUpdate;
-    }
-
-    private int CompareVersions(string v1, string v2)
-    {
-        try
-        {
-            var ver1 = new Version(v1);
-            var ver2 = new Version(v2);
-            return ver1.CompareTo(ver2);
-        }
-        catch
-        {
-            return string.Compare(v1, v2, StringComparison.Ordinal);
-        }
-    }
+    public bool IsUpdateAvailable() => _lastUpdateInfo != null && _lastUpdateInfo.ReleasesToApply.Count > 0;
+    public void Dispose() { if (!_disposed) { _updateManager?.Dispose(); _disposed = true; } }
 }
