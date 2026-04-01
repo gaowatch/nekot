@@ -60,8 +60,8 @@ public class PricingCalculator
         return currency.ToUpperInvariant() switch
         {
             "USD" => $"${cost:F4}",
-            "CNY" => $"¥{cost:F4}",
-            "EUR" => $"€{cost:F4}",
+            "CNY" => $"\u00a5{cost:F4}",
+            "EUR" => $"\u20ac{cost:F4}",
             _ => $"{cost:F4} {currency}"
         };
     }
