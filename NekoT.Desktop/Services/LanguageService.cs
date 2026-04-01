@@ -1,5 +1,5 @@
 using System;
-using System.Collections.Generic;
+using System.ComponentModel;
 using System.Globalization;
 using System.Resources;
 using System.Runtime.CompilerServices;
@@ -29,11 +29,15 @@ public class LanguageService : INotifyPropertyChanged
             if (_currentCulture != value)
             {
                 _currentCulture = value;
+                
                 Thread.CurrentThread.CurrentUICulture = value;
                 Thread.CurrentThread.CurrentCulture = value;
+                
                 CultureInfo.DefaultThreadCurrentCulture = value;
                 CultureInfo.DefaultThreadCurrentUICulture = value;
+                
                 Strings.Culture = value;
+                
                 OnPropertyChanged();
                 OnLanguageChanged();
             }

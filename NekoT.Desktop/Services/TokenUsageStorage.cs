@@ -50,18 +50,14 @@ public class TokenUsageStorage
             var coreData = MapToCoreData(data);
             var success = await _atomicEngine.WriteAsync(coreData);
 
-            if (success)
-            {
-                System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] Token data saved: {_dataFilePath}");
-            }
-            else
+            if (!success)
             {
                 await FallbackSaveAsync(data);
             }
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] Save failed: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] 保存失败: {ex.Message}");
             await FallbackSaveAsync(data);
         }
     }
@@ -73,7 +69,10 @@ public class TokenUsageStorage
             var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
             await File.WriteAllTextAsync(_dataFilePath, json);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] 降级保存失败: {ex.Message}");
+        }
     }
 
     public async Task<TokenUsageData> LoadAsync()
@@ -100,8 +99,9 @@ public class TokenUsageStorage
 
             return data;
         }
-        catch
+        catch (Exception ex)
         {
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] 加载失败: {ex.Message}");
             return new TokenUsageData();
         }
     }
@@ -114,10 +114,7 @@ public class TokenUsageStorage
             var json = await File.ReadAllTextAsync(_dataFilePath);
             return JsonSerializer.Deserialize<TokenUsageData>(json);
         }
-        catch
-        {
-            return null;
-        }
+        catch { return null; }
     }
 
     public void Clear()
@@ -127,7 +124,10 @@ public class TokenUsageStorage
             if (File.Exists(_dataFilePath)) File.Delete(_dataFilePath);
             if (File.Exists(_dataFilePath + ".bak")) File.Delete(_dataFilePath + ".bak");
         }
-        catch { }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] 删除失败: {ex.Message}");
+        }
     }
 
     private static TokenUsageDataCore MapToCoreData(TokenUsageData data)
@@ -178,4 +178,36 @@ public class TokenUsageStorage
 
         return data;
     }
+}
+
+public class TokenUsageData
+{
+    public int LatestTokenCount { get; set; }
+    public int TodayTokenCount { get; set; }
+    public int TodayRequestCount { get; set; }
+    public List<BarDataPointInfo> BarDataPoints { get; set; } = new();
+    public DateTime LastSavedTime { get; set; } = DateTime.Now;
+}
+
+public class BarDataPointInfo
+{
+    public int Value { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
+internal class TokenUsageDataCore
+{
+    public int Version { get; set; } = 1;
+    public int LatestTokenCount { get; set; }
+    public int TodayTokenCount { get; set; }
+    public int TodayRequestCount { get; set; }
+    public List<BarDataPointInfoCore>? BarDataPoints { get; set; } = new();
+    public DateTime LastSavedTime { get; set; }
+    public DateTime LastRecordDate { get; set; }
+}
+
+internal class BarDataPointInfoCore
+{
+    public DateTime Time { get; set; }
+    public int TokenCount { get; set; }
 }

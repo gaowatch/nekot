@@ -1,47 +1,21 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
-using System.Text.Json;
+using System.Security.Cryptography;
+using System.Text;
 using NekoT.Core.Contracts;
 
 namespace NekoT.Desktop.Services.Settings;
 
 public class AuditLogger : IAuditLogger
 {
-    private static AuditLogger? _instance;
-    private static readonly object _lock = new();
+    private readonly ConcurrentQueue<AuditLogEntry> _logs = new();
+    private readonly int _maxLogEntries;
 
-    private readonly string _logPath;
-    private readonly List<AuditLogEntry> _recentLogs;
-    private const int MaxRecentLogs = 500;
-
-    public static AuditLogger Instance
+    public AuditLogger(int maxLogEntries = 1000)
     {
-        get
-        {
-            lock (_lock)
-            {
-                _instance ??= new AuditLogger();
-                return _instance;
-            }
-        }
-    }
-
-    private AuditLogger()
-    {
-        var appDataPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "NekoT");
-
-        if (!Directory.Exists(appDataPath))
-        {
-            Directory.CreateDirectory(appDataPath);
-        }
-
-        _logPath = Path.Combine(appDataPath, "audit.log");
-        _recentLogs = new List<AuditLogEntry>();
-        LoadRecentLogs();
+        _maxLogEntries = maxLogEntries;
     }
 
     public void LogSettingChange(string settingName, object? oldValue, object? newValue)
@@ -51,11 +25,12 @@ public class AuditLogger : IAuditLogger
             Timestamp = DateTime.UtcNow,
             Action = AuditAction.SettingChanged,
             SettingName = settingName,
-            OldValueHash = oldValue != null ? ComputeHash(oldValue.ToString()) : null,
-            NewValueHash = newValue != null ? ComputeHash(newValue.ToString()) : null
+            OldValueHash = HashSensitiveValue(oldValue),
+            NewValueHash = HashSensitiveValue(newValue),
+            AdditionalInfo = $"Setting '{settingName}' changed"
         };
 
-        AddEntry(entry);
+        AddLog(entry);
     }
 
     public void LogAction(AuditAction action, string? additionalInfo = null)
@@ -67,7 +42,7 @@ public class AuditLogger : IAuditLogger
             AdditionalInfo = additionalInfo
         };
 
-        AddEntry(entry);
+        AddLog(entry);
     }
 
     public void LogValidationFailure(string settingName, string errorMessage, string? inputValue = null)
@@ -77,79 +52,46 @@ public class AuditLogger : IAuditLogger
             Timestamp = DateTime.UtcNow,
             Action = AuditAction.ValidationFailed,
             SettingName = settingName,
-            AdditionalInfo = $"Error: {errorMessage}, Input: {inputValue}"
+            AdditionalInfo = $"Validation failed: {errorMessage}",
+            OldValueHash = inputValue != null ? HashSensitiveValue(inputValue) : null
         };
 
-        AddEntry(entry);
+        AddLog(entry);
     }
 
     public IEnumerable<AuditLogEntry> GetRecentLogs(int count = 100)
     {
-        return _recentLogs.OrderByDescending(e => e.Timestamp).Take(count).ToList();
+        return _logs.OrderByDescending(l => l.Timestamp).Take(count).ToList();
     }
 
-    private void AddEntry(AuditLogEntry entry)
+    private void AddLog(AuditLogEntry entry)
     {
-        lock (_lock)
+        _logs.Enqueue(entry);
+
+        while (_logs.Count > _maxLogEntries)
         {
-            _recentLogs.Add(entry);
-
-            while (_recentLogs.Count > MaxRecentLogs)
-            {
-                _recentLogs.RemoveAt(0);
-            }
-
-            AppendToLog(entry);
+            _logs.TryDequeue(out _);
         }
     }
 
-    private void AppendToLog(AuditLogEntry entry)
+    private static string? HashSensitiveValue(object? value)
     {
-        try
-        {
-            var line = JsonSerializer.Serialize(entry);
-            File.AppendAllLines(_logPath, new[] { line });
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AuditLogger] Failed to append log: {ex.Message}");
-        }
-    }
+        if (value == null) return null;
 
-    private void LoadRecentLogs()
-    {
-        if (!File.Exists(_logPath))
-            return;
-
-        try
+        if (value is bool || value is int || value is double || value is float || value is decimal)
         {
-            var lines = File.ReadAllLines(_logPath);
-            foreach (var line in lines.Reverse().Take(MaxRecentLogs))
-            {
-                try
-                {
-                    var entry = JsonSerializer.Deserialize<AuditLogEntry>(line);
-                    if (entry != null)
-                    {
-                        _recentLogs.Add(entry);
-                    }
-                }
-                catch
-                {
-                }
-            }
+            return value.ToString();
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[AuditLogger] Failed to load logs: {ex.Message}");
-        }
-    }
 
-    private static string ComputeHash(string input)
-    {
-        using var sha256 = System.Security.Cryptography.SHA256.Create();
-        var bytes = System.Text.Encoding.UTF8.GetBytes(input);
+        var stringValue = value.ToString();
+        if (string.IsNullOrEmpty(stringValue)) return null;
+
+        if (stringValue.Length <= 3) return "***";
+
+        using var sha256 = SHA256.Create();
+        var bytes = Encoding.UTF8.GetBytes(stringValue);
         var hash = sha256.ComputeHash(bytes);
-        return Convert.ToBase64String(hash)[..8];
+        
+        return Convert.ToBase64String(hash.Take(16).ToArray());
     }
 }
