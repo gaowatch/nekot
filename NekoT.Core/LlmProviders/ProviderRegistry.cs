@@ -1,85 +1,93 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using NekoT.Core.Contracts;
+using System.Collections.ObjectModel;
 
 namespace NekoT.Core.LlmProviders;
 
-public interface ILlmProviderManager
-{
-    IReadOnlyDictionary<string, LlmProvider> Providers { get; }
-    LlmProvider? GetProvider(string providerName);
-    LlmProvider? GetProviderByModel(string model);
-    IEnumerable<ModelDisplayItem> GetSupportedModels(string providerName);
-    string? GetDefaultModel(string providerName);
-}
-
-public class ProviderRegistry : ILlmProviderManager
+public class ProviderRegistry : IProviderRegistry
 {
     private readonly Dictionary<string, LlmProvider> _providers;
-    private readonly Dictionary<string, string> _modelToProviderMap;
+    private readonly HashSet<string> _allowedHosts;
+    private readonly Dictionary<string, string> _hostToProvider;
+    private readonly object _lock = new();
 
     public ProviderRegistry()
     {
         _providers = LlmProviderDefaults.BuildDefaultProviders();
-        _modelToProviderMap = BuildModelToProviderMap();
+        _allowedHosts = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        _hostToProvider = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        
+        InitializePatterns();
     }
 
-    private static Dictionary<string, string> BuildModelToProviderMap()
+    private void InitializePatterns()
     {
-        var providers = LlmProviderDefaults.BuildDefaultProviders();
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var provider in providers.Values)
+        var hostMappings = new[]
         {
-            foreach (var model in provider.SupportedModels)
-            {
-                map[model.Id] = provider.Name;
-                map[model.Alias] = provider.Name;
+            ("openai.com", "openai"),
+            ("api.openai.com", "openai"),
+            ("anthropic.com", "anthropic"),
+            ("api.anthropic.com", "anthropic"),
+            ("minimax.chat", "minimax"),
+            ("api.minimax.chat", "minimax"),
+            ("deepseek.com", "deepseek"),
+            ("api.deepseek.com", "deepseek"),
+            ("moonshot.cn", "moonshot"),
+            ("api.moonshot.cn", "moonshot"),
+            ("zhipuai.cn", "zhipu"),
+            ("open.bigmodel.cn", "zhipu"),
+            ("dashscope.aliyuncs.com", "aliyun"),
+            ("tongyi.aliyun.com", "aliyun"),
+            ("qwenlm.aliyun.com", "aliyun"),
+            ("aigc.siliconflow.cn", "siliconflow"),
+            ("api.siliconflow.cn", "siliconflow"),
+            ("doubao.com", "douyin"),
+            ("www.doubao.com", "douyin"),
+            ("wss.doubao.com", "douyin"),
+            ("wss100-normal.doubao.com", "douyin"),
+            ("mcs.doubao.com", "douyin"),
+            ("yiyan.baidu.com", "baidu"),
+            ("aip.baidubce.com", "baidu"),
+            ("xinghuo.xfyun.cn", "tencent"),
+        };
 
-                foreach (var keyword in provider.ModelKeywords)
-                {
-                    if (model.Id.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-                    {
-                        map[keyword] = provider.Name;
-                    }
-                }
-            }
+        foreach (var (host, provider) in hostMappings)
+        {
+            _allowedHosts.Add(host);
+            _hostToProvider[host] = provider;
         }
-
-        return map;
     }
 
-    public IReadOnlyDictionary<string, LlmProvider> Providers => _providers;
-
-    public LlmProvider? GetProvider(string providerName)
+    public LlmProvider? DetectProviderByUrl(string url)
     {
-        if (string.IsNullOrEmpty(providerName))
+        if (string.IsNullOrEmpty(url)) return null;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
             return null;
 
-        if (_providers.TryGetValue(providerName, out var provider))
-            return provider;
+        var host = uri.Host.ToLowerInvariant();
 
-        foreach (var p in _providers.Values)
+        if (_hostToProvider.TryGetValue(host, out var providerName))
         {
-            if (p.Alias.Equals(providerName, StringComparison.OrdinalIgnoreCase))
-                return p;
+            return GetProvider(providerName);
+        }
+
+        foreach (var (allowedHost, name) in _hostToProvider)
+        {
+            if (host.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase) &&
+                host.Length > allowedHost.Length + 1)
+            {
+                return GetProvider(name);
+            }
         }
 
         return null;
     }
 
-    public LlmProvider? GetProviderByModel(string model)
+    public LlmProvider? DetectProviderByModel(string model)
     {
-        if (string.IsNullOrEmpty(model))
-            return null;
-
-        if (_modelToProviderMap.TryGetValue(model, out var providerName))
-        {
-            return _providers.GetValueOrDefault(providerName);
-        }
+        if (string.IsNullOrEmpty(model)) return null;
 
         var modelLower = model.ToLowerInvariant();
+
         foreach (var provider in _providers.Values)
         {
             foreach (var keyword in provider.ModelKeywords)
@@ -94,15 +102,76 @@ public class ProviderRegistry : ILlmProviderManager
         return null;
     }
 
-    public IEnumerable<ModelDisplayItem> GetSupportedModels(string providerName)
+    public bool IsLlmApiRequest(string url)
     {
-        var provider = GetProvider(providerName);
-        return provider?.SupportedModels ?? Enumerable.Empty<ModelDisplayItem>();
+        if (string.IsNullOrWhiteSpace(url)) return false;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+            return false;
+
+        var host = uri.Host.ToLowerInvariant();
+        var pathAndQuery = uri.PathAndQuery.ToLowerInvariant();
+
+        if (host.EndsWith("doubao.com", StringComparison.OrdinalIgnoreCase))
+        {
+            if (pathAndQuery.Contains("/static/") ||
+                pathAndQuery.Contains("/obj/flow-doubao") ||
+                pathAndQuery.Contains(".js") ||
+                pathAndQuery.Contains(".css") ||
+                pathAndQuery.Contains(".png") ||
+                pathAndQuery.Contains(".jpg") ||
+                pathAndQuery.Contains(".woff") ||
+                pathAndQuery.Contains(".ico") ||
+                pathAndQuery.Contains("monitor_browser"))
+            {
+                return false;
+            }
+
+            if (pathAndQuery.Contains("/chat/completion") ||
+                pathAndQuery.Contains("/im/chain") ||
+                pathAndQuery.Contains("/im/conversation") ||
+                pathAndQuery.Contains("/im/message") ||
+                pathAndQuery.Contains("/api/") ||
+                pathAndQuery.Contains("/list") ||
+                uri.Scheme.Equals("wss", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        if (_allowedHosts.Contains(host))
+            return true;
+
+        foreach (var allowedHost in _allowedHosts)
+        {
+            if (host.EndsWith("." + allowedHost, StringComparison.OrdinalIgnoreCase) &&
+                host.Length > allowedHost.Length + 1)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
-    public string? GetDefaultModel(string providerName)
+    public IReadOnlyDictionary<string, LlmProvider> GetAllProviders()
     {
-        var provider = GetProvider(providerName);
-        return provider?.DefaultModel;
+        return _providers;
+    }
+
+    public IReadOnlySet<string> GetAllowedHosts()
+    {
+        return _allowedHosts;
+    }
+
+    public LlmProvider? GetProvider(string providerName)
+    {
+        if (_providers.TryGetValue(providerName, out var provider))
+        {
+            return provider;
+        }
+        return null;
     }
 }
