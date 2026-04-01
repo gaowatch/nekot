@@ -7,7 +7,6 @@ public static class AppConstants
         public const int GatewayPort = 8787;
         public const int StatsPort = 8788;
         public const string LocalHost = "http://127.0.0.1";
-
         public static string GatewayUrl => $"{LocalHost}:{GatewayPort}";
         public static string StatsUrl => $"{LocalHost}:{StatsPort}/stats";
     }
@@ -46,13 +45,8 @@ public static class AppConstants
     {
         public static readonly string[] MetadataEndpoints = new[]
         {
-            "169.254.169.254",
-            "169.254.169.253",
-            "metadata.google.internal",
-            "metadata.azure.com",
-            "100.100.100.100",
-            "192.0.0.192",
-            "metadata.internal"
+            "169.254.169.254", "169.254.169.253", "metadata.google.internal",
+            "metadata.azure.com", "100.100.100.100", "192.0.0.192", "metadata.internal"
         };
     }
 
@@ -64,14 +58,12 @@ public static class AppConstants
         public const byte DarkBackgroundColorR = 0x12;
         public const byte DarkBackgroundColorG = 0x12;
         public const byte DarkBackgroundColorB = 0x12;
-
         public const string LightBackgroundColorHex = "#FFFFFF";
         public const string LightBackgroundColorArgb = "0xFFFFFFFF";
         public const uint LightBackgroundColorUInt = 0x00FFFFFF;
         public const byte LightBackgroundColorR = 0xFF;
         public const byte LightBackgroundColorG = 0xFF;
         public const byte LightBackgroundColorB = 0xFF;
-
         public const string DefaultEnvironmentVariableName = "WEBVIEW2_DEFAULT_BACKGROUND_COLOR";
     }
 }
