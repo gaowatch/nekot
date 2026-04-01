@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
-using System.Threading.Tasks;
-using NekoT.Core.Storage;
+using NekoT.Core.Security;
 
 namespace NekoT.Desktop.Services;
 
@@ -12,98 +12,114 @@ public class TokenUsageStorage
     private static TokenUsageStorage? _instance;
     private static readonly object _lock = new();
     private readonly string _storagePath;
-    private readonly string _dataFilePath;
-    private readonly IAtomicFileEngine _atomicEngine;
+    private readonly Dictionary<string, List<TokenUsageRecord>> _usageCache;
 
     public static TokenUsageStorage Instance
     {
-        get { lock (_lock) { _instance ??= new TokenUsageStorage(); return _instance; } }
+        get
+        {
+            if (_instance == null)
+            {
+                lock (_lock)
+                {
+                    _instance ??= new TokenUsageStorage();
+                }
+            }
+            return _instance;
+        }
     }
 
     private TokenUsageStorage()
     {
-        var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "NekoT");
-        if (!Directory.Exists(appDataPath)) Directory.CreateDirectory(appDataPath);
-        _storagePath = appDataPath;
-        _dataFilePath = Path.Combine(appDataPath, "token_usage.json");
-        _atomicEngine = new AtomicFileEngine(_dataFilePath);
+        var appDataPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "NekoT");
+        Directory.CreateDirectory(appDataPath);
+        _storagePath = Path.Combine(appDataPath, "token_usage.json");
+        _usageCache = new Dictionary<string, List<TokenUsageRecord>>();
+        LoadUsageData();
     }
 
-    public async Task SaveAsync(TokenUsageData data)
+    private void LoadUsageData()
     {
         try
         {
-            data.LastSavedTime = DateTime.Now;
-            var coreData = MapToCoreData(data);
-            var success = await _atomicEngine.WriteAsync(coreData);
-            if (!success) await FallbackSaveAsync(data);
+            if (File.Exists(_storagePath))
+            {
+                var json = File.ReadAllText(_storagePath);
+                var data = JsonSerializer.Deserialize<Dictionary<string, List<TokenUsageRecord>>>(json);
+                if (data != null)
+                {
+                    _usageCache = data;
+                }
+            }
         }
-        catch { await FallbackSaveAsync(data); }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] Load failed: {ex.Message}");
+        }
     }
 
-    private async Task FallbackSaveAsync(TokenUsageData data)
+    private void SaveUsageData()
     {
         try
         {
-            var json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
-            await File.WriteAllTextAsync(_dataFilePath, json);
+            var json = JsonSerializer.Serialize(_usageCache, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(_storagePath, json);
         }
-        catch { }
-    }
-
-    public async Task<TokenUsageData> LoadAsync()
-    {
-        try
+        catch (Exception ex)
         {
-            var coreData = await _atomicEngine.ReadAsync<TokenUsageDataCore>();
-            if (coreData == null) return new TokenUsageData();
-            var data = MapFromCoreData(coreData);
-            if (data.LastSavedTime.Date < DateTime.Today) { data.TodayTokenCount = 0; data.TodayRequestCount = 0; data.BarDataPoints.Clear(); }
-            return data;
+            System.Diagnostics.Debug.WriteLine($"[TokenUsageStorage] Save failed: {ex.Message}");
         }
-        catch { return new TokenUsageData(); }
     }
 
-    public void Clear()
+    public void RecordUsage(string provider, int inputTokens, int outputTokens)
     {
-        try { if (File.Exists(_dataFilePath)) File.Delete(_dataFilePath); if (File.Exists(_dataFilePath + ".bak")) File.Delete(_dataFilePath + ".bak"); } catch { }
+        var key = $"{provider}_{DateTime.Now:yyyy-MM-dd}";
+
+        if (!_usageCache.ContainsKey(key))
+        {
+            _usageCache[key] = new List<TokenUsageRecord>();
+        }
+
+        _usageCache[key].Add(new TokenUsageRecord
+        {
+            Timestamp = DateTime.Now,
+            InputTokens = inputTokens,
+            OutputTokens = outputTokens,
+            Provider = provider
+        });
+
+        SaveUsageData();
     }
 
-    private static TokenUsageDataCore MapToCoreData(TokenUsageData data) => new TokenUsageDataCore
+    public List<TokenUsageRecord> GetUsage(string provider, DateTime date)
     {
-        Version = 1, LatestTokenCount = data.LatestTokenCount, TodayTokenCount = data.TodayTokenCount,
-        TodayRequestCount = data.TodayRequestCount, LastSavedTime = data.LastSavedTime, LastRecordDate = data.LastSavedTime.Date,
-        BarDataPoints = data.BarDataPoints.Count > 0 ? data.BarDataPoints.Select(p => new BarDataPointInfoCore { TokenCount = p.Value, Time = p.Timestamp }).ToList() : new List<BarDataPointInfoCore>()
-    };
+        var key = $"{provider}_{date:yyyy-MM-dd}";
+        if (_usageCache.TryGetValue(key, out var records))
+        {
+            return records;
+        }
+        return new List<TokenUsageRecord>();
+    }
 
-    private static TokenUsageData MapFromCoreData(TokenUsageDataCore coreData) => new TokenUsageData
+    public int GetTotalTokens(string provider, DateTime date)
     {
-        LatestTokenCount = coreData.LatestTokenCount, TodayTokenCount = coreData.TodayTokenCount,
-        TodayRequestCount = coreData.TodayRequestCount, LastSavedTime = coreData.LastSavedTime,
-        BarDataPoints = coreData.BarDataPoints?.Select(p => new BarDataPointInfo { Value = p.TokenCount, Timestamp = p.Time }).ToList() ?? new List<BarDataPointInfo>()
-    };
+        var records = GetUsage(provider, date);
+        return records.Sum(r => r.InputTokens + r.OutputTokens);
+    }
+
+    public (int input, int output) GetTokenBreakdown(string provider, DateTime date)
+    {
+        var records = GetUsage(provider, date);
+        return (records.Sum(r => r.InputTokens), records.Sum(r => r.OutputTokens));
+    }
 }
 
-public class TokenUsageData
+public class TokenUsageRecord
 {
-    public int LatestTokenCount { get; set; }
-    public int TodayTokenCount { get; set; }
-    public int TodayRequestCount { get; set; }
-    public List<BarDataPointInfo> BarDataPoints { get; set; } = new();
-    public DateTime LastSavedTime { get; set; } = DateTime.Now;
+    public DateTime Timestamp { get; set; }
+    public int InputTokens { get; set; }
+    public int OutputTokens { get; set; }
+    public string Provider { get; set; } = string.Empty;
 }
-
-public class BarDataPointInfo { public int Value { get; set; } public DateTime Timestamp { get; set; } }
-
-internal class TokenUsageDataCore
-{
-    public int Version { get; set; } = 1;
-    public int LatestTokenCount { get; set; }
-    public int TodayTokenCount { get; set; }
-    public int TodayRequestCount { get; set; }
-    public List<BarDataPointInfoCore>? BarDataPoints { get; set; } = new();
-    public DateTime LastSavedTime { get; set; }
-    public DateTime LastRecordDate { get; set; }
-}
-
-internal class BarDataPointInfoCore { public DateTime Time { get; set; } public int TokenCount { get; set; } }
