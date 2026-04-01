@@ -13,16 +13,30 @@ internal class FileLogger : IDisposable
     private readonly object _logLock = new();
     private readonly ConcurrentQueue<string> _logQueue = new();
     private Timer? _logTimer;
+    private int _instanceCount;
+    private bool _timerDisposed;
     private readonly TimeSpan _logFlushInterval = TimeSpan.FromMilliseconds(100);
     private bool _disposed;
 
-    public FileLogger(string logFile) { _logFile = logFile; AppDomain.CurrentDomain.ProcessExit += OnProcessExit; }
-    private void OnProcessExit(object? sender, EventArgs e) => Dispose();
+    public FileLogger(string logFile)
+    {
+        _logFile = logFile;
+        
+        AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+    }
+
+    private void OnProcessExit(object? sender, EventArgs e)
+    {
+        Dispose();
+    }
 
     public void Log(string message)
     {
         if (_disposed) return;
-        _logQueue.Enqueue($"[{DateTime.Now:HH:mm:ss.fff}] {message}");
+        
+        var line = $"[{DateTime.Now:HH:mm:ss.fff}] {message}";
+        _logQueue.Enqueue(line);
+        System.Diagnostics.Debug.WriteLine(message);
         EnsureTimerStarted();
     }
 
@@ -31,23 +45,69 @@ internal class FileLogger : IDisposable
         lock (_logLock)
         {
             if (_disposed) return;
-            _logTimer ??= new Timer(FlushLogs, null, _logFlushInterval, _logFlushInterval);
+            
+            _timerDisposed = false;
+            _instanceCount++;
+            if (_instanceCount == 1 || _logTimer == null)
+            {
+                _logTimer?.Dispose();
+                _logTimer = new Timer(FlushLogs, null, _logFlushInterval, _logFlushInterval);
+            }
         }
     }
 
     private void FlushLogs(object? state)
     {
-        if (_logQueue.IsEmpty || _disposed) return;
-        var lines = new List<string>();
-        while (_logQueue.TryDequeue(out var line)) lines.Add(line);
-        if (lines.Count > 0) lock (_logLock) { try { File.AppendAllLines(_logFile, lines, Encoding.UTF8); } catch { } }
+        if (_logQueue.IsEmpty || _timerDisposed || _disposed) return;
+
+        try
+        {
+            var lines = new List<string>();
+            while (_logQueue.TryDequeue(out var line))
+            {
+                lines.Add(line);
+            }
+
+            if (lines.Count > 0)
+            {
+                lock (_logLock)
+                {
+                    try
+                    {
+                        File.AppendAllLines(_logFile, lines, Encoding.UTF8);
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[LogError] Failed to write to {_logFile}: {ex.Message}");
+                    }
+                }
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            _timerDisposed = true;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[LogError] FlushLogs failed: {ex.Message}");
+        }
     }
 
     public void Dispose()
     {
         if (_disposed) return;
+        
         _disposed = true;
-        lock (_logLock) { _logTimer?.Dispose(); }
+        _timerDisposed = true;
+        
+        AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+        
+        lock (_logLock)
+        {
+            _logTimer?.Dispose();
+            _logTimer = null;
+        }
+        
         FlushLogs(null);
     }
 }
