@@ -12,6 +12,7 @@ public class EncryptedDatabase : IAsyncDisposable
     private SqliteConnection? _connection;
     private byte[]? _dynamicSalt;
     private const int SaltVersion = 2;
+    
     private byte[]? _cachedKey;
     private readonly object _keyLock = new object();
 
@@ -115,6 +116,31 @@ public class EncryptedDatabase : IAsyncDisposable
         await cmd.ExecuteNonQueryAsync();
     }
 
+    public async Task<UsageRecord?> GetUsageAsync(string id)
+    {
+        if (_connection == null) throw new InvalidOperationException("Database not initialized");
+
+        var cmd = _connection.CreateCommand();
+        cmd.CommandText = "SELECT * FROM Usage WHERE Id = $id";
+        cmd.Parameters.AddWithValue("$id", id);
+
+        using var reader = await cmd.ExecuteReaderAsync();
+        if (await reader.ReadAsync())
+        {
+            return new UsageRecord
+            {
+                Id = reader.GetString(0),
+                Model = reader.GetString(1),
+                PromptTokens = reader.GetInt32(2),
+                CompletionTokens = reader.GetInt32(3),
+                TotalTokens = reader.GetInt32(4),
+                Timestamp = DateTime.Parse(reader.GetString(5)),
+                Source = reader.IsDBNull(6) ? null : reader.GetString(6)
+            };
+        }
+        return null;
+    }
+
     public async Task<List<UsageRecord>> GetUsageByTimeRangeAsync(DateTime start, DateTime end)
     {
         if (_connection == null) throw new InvalidOperationException("Database not initialized");
@@ -142,6 +168,8 @@ public class EncryptedDatabase : IAsyncDisposable
         return results;
     }
 
+    private static readonly byte[] LegacySalt = Array.Empty<byte>();
+
     private byte[] GetKey(byte[]? salt = null, bool isLegacy = false)
     {
         lock (_keyLock)
@@ -154,15 +182,25 @@ public class EncryptedDatabase : IAsyncDisposable
             byte[] derivedSalt;
             if (isLegacy)
             {
-                derivedSalt = Array.Empty<byte>();
+                derivedSalt = LegacySalt;
             }
             else if (salt != null)
             {
                 derivedSalt = salt;
             }
+            else if (_dynamicSalt != null)
+            {
+                derivedSalt = _dynamicSalt;
+            }
             else
             {
-                derivedSalt = _dynamicSalt ?? Array.Empty<byte>();
+                using var sha256 = SHA256.Create();
+                var passwordHash = sha256.ComputeHash(Encoding.UTF8.GetBytes(_password));
+                derivedSalt = new byte[16];
+                for (int i = 0; i < 16; i++)
+                {
+                    derivedSalt[i] = (byte)(LegacySalt[i % LegacySalt.Length] ^ passwordHash[i]);
+                }
             }
             
             var key = Rfc2898DeriveBytes.Pbkdf2(_password, derivedSalt, 100000, HashAlgorithmName.SHA256, 32);

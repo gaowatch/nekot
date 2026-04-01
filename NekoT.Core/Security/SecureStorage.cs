@@ -211,7 +211,7 @@ public class SecureStorage : ISecureStorage
             var security = fileInfo.GetAccessControl();
 
             using var identity = WindowsIdentity.GetCurrent();
-            var currentUser = identity.Owner ?? throw new InvalidOperationException("Cannot get current user identity");
+            var currentUser = identity.Owner ?? throw new InvalidOperationException("无法获取当前用户身份");
 
             security.SetAccessRuleProtection(true, false);
             security.ResetAccessRule(new FileSystemAccessRule(
@@ -235,7 +235,7 @@ public class SecureStorage : ISecureStorage
             var security = dirInfo.GetAccessControl();
 
             using var identity = WindowsIdentity.GetCurrent();
-            var currentUser = identity.Owner ?? throw new InvalidOperationException("Cannot get current user identity");
+            var currentUser = identity.Owner ?? throw new InvalidOperationException("无法获取当前用户身份");
 
             security.SetAccessRuleProtection(true, false);
             security.ResetAccessRule(new FileSystemAccessRule(
