@@ -1,4 +1,5 @@
 using System;
+using NekoT.Desktop.Services.Logging;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -160,6 +161,7 @@ public partial class MainViewModel : ViewModelBase
     }
 
     public int TabCount => Tabs.Count;
+
     public bool HasTabs => Tabs.Count > 0;
 
     private TabOverflowResult GetOrCreateOverflowResult()
@@ -172,9 +174,29 @@ public partial class MainViewModel : ViewModelBase
         return _cachedOverflowResult;
     }
 
-    public IReadOnlyList<TabItemViewModel> VisibleTabs => GetOrCreateOverflowResult().VisibleTabs;
-    public IReadOnlyList<TabItemViewModel> OverflowTabs => GetOrCreateOverflowResult().OverflowTabs;
-    public bool HasOverflowTabs => GetOrCreateOverflowResult().HasOverflow;
+    public IReadOnlyList<TabItemViewModel> VisibleTabs
+    {
+        get
+        {
+            return GetOrCreateOverflowResult().VisibleTabs;
+        }
+    }
+
+    public IReadOnlyList<TabItemViewModel> OverflowTabs
+    {
+        get
+        {
+            return GetOrCreateOverflowResult().OverflowTabs;
+        }
+    }
+
+    public bool HasOverflowTabs
+    {
+        get
+        {
+            return GetOrCreateOverflowResult().HasOverflow;
+        }
+    }
 
     private double _scrollOffset;
     public double ScrollOffset
@@ -193,13 +215,30 @@ public partial class MainViewModel : ViewModelBase
     }
 
     public bool CanScrollLeft => _scrollOffset > 0;
+
     public bool CanScrollRight => HasOverflowTabs;
 
-    public void ScrollLeft() => ScrollOffset = Math.Max(0, _scrollOffset - 150);
-    public void ScrollRight() => ScrollOffset += 150;
-    public void SelectOverflowTab(TabItemViewModel? tab) { if (tab != null) SelectTab(tab); }
+    public void ScrollLeft()
+    {
+        ScrollOffset = Math.Max(0, ScrollOffset - 150);
+    }
 
-    public bool IsServiceRunning { get => _isServiceRunning; set => SetField(ref _isServiceRunning, value); }
+    public void ScrollRight()
+    {
+        ScrollOffset += 150;
+    }
+
+    public void SelectOverflowTab(TabItemViewModel? tab)
+    {
+        if (tab == null) return;
+        SelectTab(tab);
+    }
+
+    public bool IsServiceRunning
+    {
+        get => _isServiceRunning;
+        set => SetField(ref _isServiceRunning, value);
+    }
 
     public bool ShowTokenMonitor
     {
@@ -214,8 +253,17 @@ public partial class MainViewModel : ViewModelBase
         }
     }
 
-    public string UploadSpeedText { get => _uploadSpeedText; set => SetField(ref _uploadSpeedText, value); }
-    public string DownloadSpeedText { get => _downloadSpeedText; set => SetField(ref _downloadSpeedText, value); }
+    public string UploadSpeedText
+    {
+        get => _uploadSpeedText;
+        set => SetField(ref _uploadSpeedText, value);
+    }
+
+    public string DownloadSpeedText
+    {
+        get => _downloadSpeedText;
+        set => SetField(ref _downloadSpeedText, value);
+    }
 
     public AppLogoMode LogoMode
     {
@@ -233,10 +281,12 @@ public partial class MainViewModel : ViewModelBase
     }
 
     public string LogoDisplayText => _logoMode == AppLogoMode.Browser ? "NekoT" : "TokeN";
+
     public bool IsBrowserMode => _logoMode == AppLogoMode.Browser;
     public bool IsChatMode => _logoMode == AppLogoMode.Chat;
 
     public ICommand LogoClickCommand { get; }
+
     public ICommand AddBrowserTab { get; }
     public ICommand AddChatTab { get; }
     public ICommand GoHomeCommand { get; }
@@ -250,8 +300,10 @@ public partial class MainViewModel : ViewModelBase
     public void ToggleLogoMode()
     {
         if (HomeTab == null || ChatTab == null) return;
+
         var newMode = LogoMode == AppLogoMode.Browser ? AppLogoMode.Chat : AppLogoMode.Browser;
         var targetTab = newMode == AppLogoMode.Browser ? HomeTab : ChatTab;
+
         SelectedTab = targetTab;
         LogoMode = newMode;
     }
@@ -259,6 +311,7 @@ public partial class MainViewModel : ViewModelBase
     public void GoHome()
     {
         if (HomeTab == null) return;
+        
         SelectedTab = HomeTab;
         LogoMode = AppLogoMode.Browser;
     }
@@ -289,29 +342,43 @@ public partial class MainViewModel : ViewModelBase
 
     public void NavigateBack()
     {
-        if (SelectedTab?.Content is BrowserTabView browserView && browserView.DataContext is BrowserTabViewModel vm)
+        if (SelectedTab?.Content is BrowserTabView browserView)
         {
-            vm.GoBack();
+            if (browserView.DataContext is BrowserTabViewModel vm)
+            {
+                vm.GoBack();
+            }
         }
     }
 
     public void NavigateForward()
     {
-        if (SelectedTab?.Content is BrowserTabView browserView && browserView.DataContext is BrowserTabViewModel vm)
+        if (SelectedTab?.Content is BrowserTabView browserView)
         {
-            vm.GoForward();
+            if (browserView.DataContext is BrowserTabViewModel vm)
+            {
+                vm.GoForward();
+            }
         }
     }
 
     public void NavigateRefresh()
     {
-        if (SelectedTab?.Content is BrowserTabView browserView && browserView.DataContext is BrowserTabViewModel vm)
+        if (SelectedTab?.Content is BrowserTabView browserView)
         {
-            vm.Refresh();
+            if (browserView.DataContext is BrowserTabViewModel vm)
+            {
+                vm.Refresh();
+            }
         }
     }
 
-    private void CreateInitialTabs() { CreateHomeTab(); CreateChatTab(); }
+    private void CreateInitialTabs()
+    {
+        CreateHomeTab();
+        CreateChatTab();
+    }
+
     public TabItemViewModel? HomeTab { get; private set; }
     public TabItemViewModel? ChatTab { get; private set; }
 
@@ -321,20 +388,41 @@ public partial class MainViewModel : ViewModelBase
         _homeView = new HomeView();
         _homeView.SetViewModel(_homeViewModel);
 
-        HomeTab = new TabItemViewModel { Title = Strings.Tab_Home, Content = _homeView, TabType = "home", CanClose = false };
+        HomeTab = new TabItemViewModel
+        {
+            Title = Strings.Tab_Home,
+            Content = _homeView,
+            TabType = "home",
+            CanClose = false
+        };
+
         _homeViewModel.NavigateRequested += OnHomeNavigateRequested;
         _homeView.NavigationRequested += OnHomeNavigateRequested;
+        
         HomeTab.Selected += (s, e) => SelectTab(HomeTab);
+        
         Tabs.Add(HomeTab);
     }
     
-    private void OnHomeNavigateRequested(object? sender, string url) => OnHomeViewNavigateRequested(url);
+    private void OnHomeNavigateRequested(object? sender, string url)
+    {
+        OnHomeViewNavigateRequested(url);
+    }
 
     private void CreateChatTab()
     {
         var view = new ChatTabView { DataContext = ChatViewModel };
-        ChatTab = new TabItemViewModel { Title = Strings.Tab_AIChat, Content = view, TabType = "chat", CanClose = false };
+
+        ChatTab = new TabItemViewModel
+        {
+            Title = Strings.Tab_AIChat,
+            Content = view,
+            TabType = "chat",
+            CanClose = false
+        };
+        
         ChatTab.Selected += (s, e) => SelectTab(ChatTab);
+        
         Tabs.Add(ChatTab);
     }
 
@@ -343,11 +431,18 @@ public partial class MainViewModel : ViewModelBase
         var viewModel = new BrowserTabViewModel();
         var view = new BrowserTabView { DataContext = viewModel };
 
-        var tab = new TabItemViewModel { Title = Strings.Tab_Loading, Content = view, TabType = "browser", CanClose = true };
+        var tab = new TabItemViewModel
+        {
+            Title = Strings.Tab_Loading,
+            Content = view,
+            TabType = "browser",
+            CanClose = true
+        };
 
         var handlers = new BrowserTabEventHandlers
         {
-            Tab = tab, ViewModel = viewModel,
+            Tab = tab,
+            ViewModel = viewModel,
             ClosedHandler = (s, e) => RemoveTab(tab),
             SelectedHandler = (s, e) => SelectTab(tab),
             TokenDetectedHandler = (s, e) => OnBrowserTabTokenDetected(e),
@@ -356,6 +451,7 @@ public partial class MainViewModel : ViewModelBase
         };
         
         _tabEventHandlers[tab] = handlers;
+
         tab.Closed += handlers.ClosedHandler;
         tab.Selected += handlers.SelectedHandler;
         viewModel.TokenDetected += handlers.TokenDetectedHandler;
@@ -366,12 +462,14 @@ public partial class MainViewModel : ViewModelBase
         SelectTab(tab);
         OnPropertyChanged(nameof(TabCount));
         OnPropertyChanged(nameof(HasTabs));
+
         viewModel.NavigateTo(url);
     }
 
     private void CreateBrowserTab()
     {
         var homePage = UserSettingsService.Instance.HomePage;
+        
         if (!string.IsNullOrEmpty(homePage) && homePage != "about:blank")
         {
             OnHomeViewNavigateRequested(homePage);
@@ -380,11 +478,19 @@ public partial class MainViewModel : ViewModelBase
         
         var viewModel = new BrowserTabViewModel();
         var view = new BrowserTabView { DataContext = viewModel };
-        var tab = new TabItemViewModel { Title = Strings.Tab_Browser, Content = view, TabType = "browser", CanClose = true };
+
+        var tab = new TabItemViewModel
+        {
+            Title = Strings.Tab_Browser,
+            Content = view,
+            TabType = "browser",
+            CanClose = true
+        };
 
         var handlers = new BrowserTabEventHandlers
         {
-            Tab = tab, ViewModel = viewModel,
+            Tab = tab,
+            ViewModel = viewModel,
             ClosedHandler = (s, e) => RemoveTab(tab),
             SelectedHandler = (s, e) => SelectTab(tab),
             TokenDetectedHandler = (s, e) => OnBrowserTabTokenDetected(e),
@@ -393,6 +499,7 @@ public partial class MainViewModel : ViewModelBase
         };
         
         _tabEventHandlers[tab] = handlers;
+
         tab.Closed += handlers.ClosedHandler;
         tab.Selected += handlers.SelectedHandler;
         viewModel.TokenDetected += handlers.TokenDetectedHandler;
@@ -407,25 +514,49 @@ public partial class MainViewModel : ViewModelBase
     
     private void OnBrowserTabTokenDetected(TokenExtractedEventArgs e)
     {
-        if (e.IsAuthExtraction) LoggerService.Instance.LogDebug("Token", $"Auth extracted: Type={e.TokenType}, Provider={e.Provider}");
-        else RecordUsage(e.Tokens, e.Provider);
+        if (e.IsAuthExtraction)
+        {
+            LoggerService.Instance.LogDebug("Token", $"Auth extracted: Type={e.TokenType}, Provider={e.Provider}");
+        }
+        else
+        {
+            RecordUsage(e.Tokens, e.Provider);
+        }
     }
     
     private void OnBrowserTabTrafficDetected(TrafficStatsEventArgs e)
     {
-        Dispatcher.UIThread.Post(() => { UploadSpeedText = e.UploadSpeedFormatted; DownloadSpeedText = e.DownloadSpeedFormatted; });
+        Dispatcher.UIThread.Post(() =>
+        {
+            UploadSpeedText = e.UploadSpeedFormatted;
+            DownloadSpeedText = e.DownloadSpeedFormatted;
+        });
     }
     
     private void OnBrowserTabPropertyChanged(TabItemViewModel tab, BrowserTabViewModel viewModel, PropertyChangedEventArgs e)
     {
         if (tab == null || viewModel == null || e == null) return;
-        if (!Dispatcher.UIThread.CheckAccess()) { Dispatcher.UIThread.Post(() => OnBrowserTabPropertyChanged(tab, viewModel, e)); return; }
+        
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(() => OnBrowserTabPropertyChanged(tab, viewModel, e));
+            return;
+        }
+        
         switch (e.PropertyName)
         {
-            case nameof(BrowserTabViewModel.Title): tab.Title = viewModel.Title ?? Strings.Tab_NewTab; break;
+            case nameof(BrowserTabViewModel.Title):
+                tab.Title = viewModel.Title ?? Strings.Tab_NewTab;
+                break;
             case nameof(BrowserTabViewModel.CanGoBack):
             case nameof(BrowserTabViewModel.CanGoForward):
-                if (SelectedTab == tab) { OnPropertyChanged(nameof(CanNavigateBack)); OnPropertyChanged(nameof(CanNavigateForward)); (NavigateBackCommand as RelayCommand)?.RaiseCanExecuteChanged(); (NavigateForwardCommand as RelayCommand)?.RaiseCanExecuteChanged(); }
+                if (SelectedTab == tab)
+                {
+                    OnPropertyChanged(nameof(CanNavigateBack));
+                    OnPropertyChanged(nameof(CanNavigateForward));
+                    (NavigateBackCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                    (NavigateForwardCommand as RelayCommand)?.RaiseCanExecuteChanged();
+                }
                 break;
         }
     }
@@ -433,9 +564,28 @@ public partial class MainViewModel : ViewModelBase
     public void SelectTab(TabItemViewModel tab)
     {
         if (tab == null) return;
+
         SelectedTab = tab;
+        
         var targetMode = tab.TabType == "chat" ? AppLogoMode.Chat : AppLogoMode.Browser;
-        if (LogoMode != targetMode) LogoMode = targetMode;
+        if (LogoMode != targetMode)
+        {
+            LogoMode = targetMode;
+        }
+    }
+
+    private void UpdateLogoDisplay()
+    {
+        AppLogoMode newMode;
+        if (SelectedTab?.TabType == "home" || SelectedTab?.TabType == "browser")
+            newMode = AppLogoMode.Browser;
+        else
+            newMode = AppLogoMode.Chat;
+
+        if (LogoMode != newMode)
+        {
+            LogoMode = newMode;
+        }
     }
 
     private void RemoveTab(TabItemViewModel tab)
@@ -455,13 +605,34 @@ public partial class MainViewModel : ViewModelBase
         OnPropertyChanged(nameof(TabCount));
         OnPropertyChanged(nameof(HasTabs));
 
-        if (Tabs.Count == 0) { SelectedTab = HomeTab; _logoMode = AppLogoMode.Browser; OnPropertyChanged(nameof(LogoMode)); OnPropertyChanged(nameof(LogoDisplayText)); OnPropertyChanged(nameof(IsBrowserMode)); OnPropertyChanged(nameof(IsChatMode)); }
-        else if (SelectedTab == tab) { SelectedTab = HomeTab; LogoMode = AppLogoMode.Browser; }
+        if (Tabs.Count == 0)
+        {
+            SelectedTab = HomeTab;
+            _logoMode = AppLogoMode.Browser;
+            OnPropertyChanged(nameof(LogoMode));
+            OnPropertyChanged(nameof(LogoDisplayText));
+            OnPropertyChanged(nameof(IsBrowserMode));
+            OnPropertyChanged(nameof(IsChatMode));
+        }
+        else if (SelectedTab == tab)
+        {
+            SelectedTab = HomeTab;
+            LogoMode = AppLogoMode.Browser;
+        }
     }
 
     private void OnChatMessageSent(object? sender, string message)
     {
-        _ = HandleChatMessageAsync(message).ContinueWith(task => { if (task.Exception != null) { LoggerService.Instance.LogError("Forwarding", "Unhandled exception in OnChatMessageSent", task.Exception); ChatViewModel.IsSending = false; } }, TaskContinuationOptions.OnlyOnFaulted);
+        _ = HandleChatMessageAsync(message).ContinueWith(
+            task =>
+            {
+                if (task.Exception != null)
+                {
+                    LoggerService.Instance.LogError("Forwarding", "Unhandled exception in OnChatMessageSent", task.Exception);
+                    ChatViewModel.IsSending = false;
+                }
+            },
+            TaskContinuationOptions.OnlyOnFaulted);
     }
     
     private async Task HandleChatMessageAsync(string message)
@@ -470,77 +641,195 @@ public partial class MainViewModel : ViewModelBase
         {
             LoggerService.Instance.LogInfo("Forwarding", $"OnChatMessageSent called: {message}");
             ChatViewModel.IsSending = true;
+
             var (response, usage) = await ForwardMessageAsync(message);
+
             LoggerService.Instance.LogInfo("Forwarding", $"Response received, content length: {response?.Length ?? 0}");
             LoggerService.Instance.LogInfo("Forwarding", $"Usage: TotalTokens={usage?.TotalTokens}");
+
             ChatViewModel.AddAssistantMessage(response);
-            if (usage != null) { LoggerService.Instance.LogInfo("Forwarding", $"Recording usage: input={usage.PromptTokens}, output={usage.CompletionTokens}, total={usage.TotalTokens}"); RecordUsage(usage.PromptTokens, usage.CompletionTokens, SidePanelViewModel.SelectedProvider); }
+
+            if (usage != null)
+            {
+                LoggerService.Instance.LogInfo("Forwarding", $"Recording usage: input={usage.PromptTokens}, output={usage.CompletionTokens}, total={usage.TotalTokens}");
+                RecordUsage(usage.PromptTokens, usage.CompletionTokens, SidePanelViewModel.SelectedProvider);
+            }
         }
-        catch (Exception ex) { LoggerService.Instance.LogError("Forwarding", "Error", ex); ChatViewModel.AddAssistantMessage($"{Strings.Common_Error}: {ex.Message}"); }
-        finally { ChatViewModel.IsSending = false; }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError("Forwarding", "Error", ex);
+            ChatViewModel.AddAssistantMessage($"{Strings.Common_Error}: {ex.Message}");
+        }
+        finally
+        {
+            ChatViewModel.IsSending = false;
+        }
     }
 
-    private void OnAIServicesToggleRequested(object? sender, EventArgs e) { if (SidePanelViewModel != null) SidePanelViewModel.TogglePanel(); }
+    private void OnAIServicesToggleRequested(object? sender, EventArgs e)
+    {
+        if (SidePanelViewModel != null)
+        {
+            SidePanelViewModel.TogglePanel();
+        }
+    }
 
-    private async Task<(string content, Usage? usage)> ForwardMessageAsync(string message)
+    private async System.Threading.Tasks.Task<(string content, Usage? usage)> ForwardMessageAsync(string message)
     {
         var apiKey = SidePanelViewModel.ApiKey;
         var providerName = SidePanelViewModel.SelectedProvider ?? "openai";
         var model = SidePanelViewModel.SelectedModel;
-        if (string.IsNullOrEmpty(model)) { model = LlmProviderManager.Instance.GetDefaultModel(providerName) ?? "gpt-4o-mini"; }
+
+        if (string.IsNullOrEmpty(model))
+        {
+            model = LlmProviderManager.Instance.GetDefaultModel(providerName) ?? "gpt-4o-mini";
+        }
+
         LoggerService.Instance.LogInfo("Forwarding", $"ForwardMessageAsync: provider={providerName}, model={model}, apiKey={(!string.IsNullOrEmpty(apiKey) ? Strings.API_KeyConfigured : Strings.API_KeyNotConfigured)}");
-        if (string.IsNullOrWhiteSpace(apiKey)) return (Strings.API_ConfigureFirst, null);
+
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            return (Strings.API_ConfigureFirst, null);
+        }
+
         try
         {
             var chatMessages = new List<NekoT.Core.Forwarding.ChatMessage>();
-            foreach (var msg in ChatViewModel.Messages) { chatMessages.Add(new NekoT.Core.Forwarding.ChatMessage(msg.Role, msg.Content)); }
+
+            foreach (var msg in ChatViewModel.Messages)
+            {
+                chatMessages.Add(new NekoT.Core.Forwarding.ChatMessage(msg.Role, msg.Content));
+            }
+
             chatMessages.Add(new NekoT.Core.Forwarding.ChatMessage("user", message));
-            var request = _forwardingService.CreateRequest(model: model, apiKey: apiKey, messages: chatMessages);
+
+            var request = _forwardingService.CreateRequest(
+                model: model,
+                apiKey: apiKey,
+                messages: chatMessages
+            );
+
             LoggerService.Instance.LogInfo("Forwarding", "Sending request to API...");
             var response = await _forwardingService.SendMessageAsync(request);
             LoggerService.Instance.LogInfo("Forwarding", $"Response received: Content length={response.Content?.Length}, Usage={response.Usage?.TotalTokens}");
+
             SidePanelViewModel.IsForwardingConnected = true;
+
             return (response.Content, response.Usage);
         }
-        catch (UnauthorizedAccessException ex) { LoggerService.Instance.LogError("Forwarding", "Unauthorized", ex); SidePanelViewModel.IsForwardingConnected = false; return ($"{Strings.Error_AccessDenied} {ex.Message}", null); }
-        catch (System.Net.Http.HttpRequestException ex) { LoggerService.Instance.LogError("Forwarding", "HTTP error", ex); SidePanelViewModel.IsForwardingConnected = false; return ($"{Strings.Error_NetworkFailed} {ex.Message}", null); }
-        catch (Exception ex) { LoggerService.Instance.LogError("Forwarding", "Exception", ex); SidePanelViewModel.IsForwardingConnected = false; return ($"{Strings.Error_ForwardingFailed} {ex.Message}", null); }
+        catch (UnauthorizedAccessException ex)
+        {
+            LoggerService.Instance.LogError("Forwarding", "Unauthorized", ex);
+            SidePanelViewModel.IsForwardingConnected = false;
+            return ($("{Strings.Error_AccessDenied} {ex.Message}", null);
+        }
+        catch (System.Net.Http.HttpRequestException ex)
+        {
+            LoggerService.Instance.LogError("Forwarding", "HTTP error", ex);
+            SidePanelViewModel.IsForwardingConnected = false;
+            return ($("{Strings.Error_NetworkFailed} {ex.Message}", null);
+        }
+        catch (Exception ex)
+        {
+            LoggerService.Instance.LogError("Forwarding", "Exception", ex);
+            SidePanelViewModel.IsForwardingConnected = false;
+            return ($("{Strings.Error_ForwardingFailed} {ex.Message}", null);
+        }
     }
 
     private int _totalTokens = 0;
-    public int TotalTokens { get => Interlocked.Add(ref _totalTokens, 0); set { Interlocked.Exchange(ref _totalTokens, value); OnPropertyChanged(nameof(TotalTokens)); } }
 
-    public void RecordUsage(int totalTokens, string? provider = null) => RecordUsage(totalTokens, 0, provider);
+    public int TotalTokens
+    {
+        get => Interlocked.Add(ref _totalTokens, 0);
+        set
+        {
+            Interlocked.Exchange(ref _totalTokens, value);
+            OnPropertyChanged(nameof(TotalTokens));
+        }
+    }
+
+    public void RecordUsage(int totalTokens, string? provider = null)
+    {
+        RecordUsage(totalTokens, 0, provider);
+    }
 
     public void RecordUsage(int inputTokens, int outputTokens, string? provider = null)
     {
         var totalTokens = inputTokens + outputTokens;
+        
         var newTotal = Interlocked.Add(ref _totalTokens, totalTokens);
+        
         SidePanelViewModel.AtomicAddTotalTokens(totalTokens);
         SidePanelViewModel.AtomicAddSessionTokens(totalTokens);
         ChatViewModel.AddTokens(totalTokens);
+        
         _forwardingServiceViewModel.RecordTokenUsage(inputTokens, outputTokens);
-        var record = new UsageDisplayRecord { Tokens = totalTokens, Timestamp = DateTime.Now, Provider = provider ?? "Unknown" };
-        Dispatcher.UIThread.InvokeAsync(() => { UsageRecords.Insert(0, record); while (UsageRecords.Count > MaxUsageRecords) UsageRecords.RemoveAt(UsageRecords.Count - 1); });
-        Dispatcher.UIThread.Post(() => OnPropertyChanged(nameof(TotalTokens)));
+        
+        var record = new UsageDisplayRecord
+        {
+            Tokens = totalTokens,
+            Timestamp = DateTime.Now,
+            Provider = provider ?? "Unknown"
+        };
+        
+        Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            UsageRecords.Insert(0, record);
+            while (UsageRecords.Count > MaxUsageRecords)
+            {
+                UsageRecords.RemoveAt(UsageRecords.Count - 1);
+            }
+        });
+        
+        Dispatcher.UIThread.Post(() =>
+        {
+            OnPropertyChanged(nameof(TotalTokens));
+        });
     }
 
-    private void OnUserSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e) { if (e.PropertyName == nameof(UserSettingsService.ShowTokenMonitor)) OnPropertyChanged(nameof(ShowTokenMonitor)); }
-    private void OnModelChanged(object? sender, EventArgs e) => UpdateChatModelDisplay();
+    private void OnUserSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(UserSettingsService.ShowTokenMonitor))
+        {
+            OnPropertyChanged(nameof(ShowTokenMonitor));
+        }
+    }
+
+    private void OnModelChanged(object? sender, EventArgs e)
+    {
+        UpdateChatModelDisplay();
+    }
 
     private void UpdateChatModelDisplay()
     {
         var apiKey = SidePanelViewModel.ApiKey;
-        if (string.IsNullOrWhiteSpace(apiKey)) { ChatViewModel.CurrentModel = Strings.Model_SelectModelAndAPI; return; }
+        
+        if (string.IsNullOrWhiteSpace(apiKey))
+        {
+            ChatViewModel.CurrentModel = Strings.Model_SelectModelAndAPI;
+            return;
+        }
+
         var provider = LlmProviderManager.Instance.GetProvider(SidePanelViewModel.SelectedProvider);
         var modelId = SidePanelViewModel.SelectedModel;
+
         if (provider != null && !string.IsNullOrEmpty(modelId))
         {
             var modelInfo = provider.SupportedModels.FirstOrDefault(m => m.Id == modelId);
-            if (modelInfo != null) ChatViewModel.CurrentModel = $"{provider.DisplayName} - {modelInfo.DisplayName}";
-            else ChatViewModel.CurrentModel = $"{provider.DisplayName} - {modelId}";
+            if (modelInfo != null)
+            {
+                ChatViewModel.CurrentModel = $"{provider.DisplayName} - {modelInfo.DisplayName}";
+            }
+            else
+            {
+                ChatViewModel.CurrentModel = $"{provider.DisplayName} - {modelId}";
+            }
         }
-        else ChatViewModel.CurrentModel = Strings.Model_SelectModel;
+        else
+        {
+            ChatViewModel.CurrentModel = Strings.Model_SelectModel;
+        }
     }
 
     public void StartService() => IsServiceRunning = true;
@@ -548,12 +837,26 @@ public partial class MainViewModel : ViewModelBase
 
     public void UpdateAvailableWidth(double width)
     {
-        if (width < 0) throw new ArgumentException("Width cannot be negative", nameof(width));
-        if (Math.Abs(_availableWidth - width) > 0.1) { _availableWidth = width; _cachedOverflowResult = null; OnPropertyChanged(nameof(VisibleTabs)); OnPropertyChanged(nameof(OverflowTabs)); OnPropertyChanged(nameof(HasOverflowTabs)); }
+        if (width < 0)
+            throw new ArgumentException("Width cannot be negative", nameof(width));
+
+        if (Math.Abs(_availableWidth - width) > 0.1)
+        {
+            _availableWidth = width;
+            _cachedOverflowResult = null;
+            OnPropertyChanged(nameof(VisibleTabs));
+            OnPropertyChanged(nameof(OverflowTabs));
+            OnPropertyChanged(nameof(HasOverflowTabs));
+        }
     }
 }
 
-public class UsageDisplayRecord { public int Tokens { get; set; } public DateTime Timestamp { get; set; } public string Provider { get; set; } = "Unknown"; }
+public class UsageDisplayRecord
+{
+    public int Tokens { get; set; }
+    public DateTime Timestamp { get; set; }
+    public string Provider { get; set; } = "Unknown";
+}
 
 internal class BrowserTabEventHandlers
 {

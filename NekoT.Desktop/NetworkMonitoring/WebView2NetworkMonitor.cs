@@ -626,7 +626,7 @@ public class WebView2NetworkMonitor : INetworkMonitor, IDisposable
                 }
                 else
                 {
-                    Logger.LogInfo(LogCategory, "Token: No tokens found in response");
+                    Logger.LogInfo(LogCategory, $"Token: No tokens found in response");
                 }
             }
         }
@@ -967,7 +967,9 @@ public class WebView2NetworkMonitor : INetworkMonitor, IDisposable
                         body = Encoding.UTF8.GetString(bytes);
                     }
 
+                    Logger.LogInfo(LogCategory, $"Fetch: Response body length: {body.Length}");
                     Logger.LogInfo(LogCategory, $"Fetch: Response body length: {body?.Length ?? 0}");
+
                     ProcessStreamingData(body, url, requestId);
                 }
             }
