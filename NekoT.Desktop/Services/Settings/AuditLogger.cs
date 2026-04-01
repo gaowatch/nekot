@@ -29,6 +29,7 @@ public class AuditLogger : IAuditLogger
             NewValueHash = HashSensitiveValue(newValue),
             AdditionalInfo = $"Setting '{settingName}' changed"
         };
+
         AddLog(entry);
     }
 
@@ -40,6 +41,7 @@ public class AuditLogger : IAuditLogger
             Action = action,
             AdditionalInfo = additionalInfo
         };
+
         AddLog(entry);
     }
 
@@ -53,6 +55,7 @@ public class AuditLogger : IAuditLogger
             AdditionalInfo = $"Validation failed: {errorMessage}",
             OldValueHash = inputValue != null ? HashSensitiveValue(inputValue) : null
         };
+
         AddLog(entry);
     }
 
@@ -64,19 +67,31 @@ public class AuditLogger : IAuditLogger
     private void AddLog(AuditLogEntry entry)
     {
         _logs.Enqueue(entry);
-        while (_logs.Count > _maxLogEntries) _logs.TryDequeue(out _);
+
+        while (_logs.Count > _maxLogEntries)
+        {
+            _logs.TryDequeue(out _);
+        }
     }
 
     private static string? HashSensitiveValue(object? value)
     {
         if (value == null) return null;
-        if (value is bool || value is int || value is double || value is float || value is decimal) return value.ToString();
+
+        if (value is bool || value is int || value is double || value is float || value is decimal)
+        {
+            return value.ToString();
+        }
+
         var stringValue = value.ToString();
         if (string.IsNullOrEmpty(stringValue)) return null;
+
         if (stringValue.Length <= 3) return "***";
+
         using var sha256 = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(stringValue);
         var hash = sha256.ComputeHash(bytes);
+        
         return Convert.ToBase64String(hash.Take(16).ToArray());
     }
 }
