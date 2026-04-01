@@ -1,10 +1,6 @@
-using System;
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Text.Json;
 using System.Threading;
+using NekoT.Core.Configuration;
 using NekoT.Core.Contracts;
 
 namespace NekoT.Core.TokenManagement;
@@ -13,122 +9,113 @@ public class TokenService : ITokenService
 {
     private int _totalTokens;
     private int _sessionTokens;
-    private readonly object _lock = new();
-    private readonly string _storagePath;
-    private readonly JsonSerializerOptions _jsonOptions;
-    private readonly ObservableCollection<UsageRecord> _usageRecords;
-    private readonly ConcurrentDictionary<string, int> _providerTokens;
+
+    private readonly object _recordsLock = new();
+
+    private readonly HashSet<string> _processedRequestIds = new();
+    private readonly Queue<string> _requestIdQueue = new();
 
     public TokenService()
     {
-        var appDataPath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        var nekotPath = Path.Combine(appDataPath, "NekoT");
-        if (!Directory.Exists(nekotPath)) Directory.CreateDirectory(nekotPath);
-        _storagePath = Path.Combine(nekotPath, "token_usage.json");
-        _jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
-        _usageRecords = new ObservableCollection<UsageRecord>();
-        _providerTokens = new ConcurrentDictionary<string, int>();
-        LoadUsageData();
+        UsageRecords = new ObservableCollection<UsageRecord>();
     }
 
     public int TotalTokens => _totalTokens;
     public int SessionTokens => _sessionTokens;
-    public ObservableCollection<UsageRecord> UsageRecords => _usageRecords;
+    public ObservableCollection<UsageRecord> UsageRecords { get; }
 
     public void RecordUsage(int tokens, string? provider = null, string? requestId = null)
     {
-        if (tokens <= 0) return;
+        if (!string.IsNullOrEmpty(requestId))
+        {
+            lock (_recordsLock)
+            {
+                if (_processedRequestIds.Contains(requestId))
+                    return;
+
+                while (_requestIdQueue.Count >= AppConstants.TokenManagement.DeduplicationCacheSize)
+                {
+                    var oldestId = _requestIdQueue.Dequeue();
+                    _processedRequestIds.Remove(oldestId);
+                }
+
+                _processedRequestIds.Add(requestId);
+                _requestIdQueue.Enqueue(requestId);
+            }
+        }
+
         Interlocked.Add(ref _totalTokens, tokens);
         Interlocked.Add(ref _sessionTokens, tokens);
+
         var record = new UsageRecord
         {
-            Timestamp = DateTime.Now,
+            Id = requestId ?? Guid.NewGuid().ToString(),
             Tokens = tokens,
             Provider = provider ?? "Unknown",
-            RequestId = requestId ?? Guid.NewGuid().ToString()
+            Timestamp = DateTime.Now
         };
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => _usageRecords.Add(record));
-        if (!string.IsNullOrEmpty(provider)) _providerTokens.AddOrUpdate(provider, tokens, (_, existing) => existing + tokens);
-        System.Diagnostics.Debug.WriteLine($"[TokenService] Recorded {tokens} tokens from {provider}");
+
+        lock (_recordsLock)
+        {
+            while (UsageRecords.Count >= AppConstants.TokenManagement.MaxRecordCount)
+            {
+                UsageRecords.RemoveAt(UsageRecords.Count - 1);
+            }
+
+            UsageRecords.Insert(0, record);
+        }
     }
 
     public void ResetSession()
     {
-        Interlocked.Exchange(ref _sessionTokens, 0);
-        Avalonia.Threading.Dispatcher.UIThread.Post(() => _usageRecords.Clear());
+        int originalValue;
+        do
+        {
+            originalValue = _sessionTokens;
+        } while (Interlocked.CompareExchange(ref _sessionTokens, 0, originalValue) != originalValue);
     }
 
     public TokenStatistics GetStatistics()
     {
-        lock (_lock)
+        int recordsCount;
+        lock (_recordsLock)
         {
-            var todayRecords = _usageRecords.Where(r => r.Timestamp.Date == DateTime.Today).ToList();
-            return new TokenStatistics
-            {
-                TotalTokens = _totalTokens,
-                SessionTokens = _sessionTokens,
-                TodayTokens = todayRecords.Sum(r => r.Tokens),
-                RecordCount = _usageRecords.Count
-            };
+            recordsCount = UsageRecords.Count;
         }
+
+        return new TokenStatistics
+        {
+            TotalTokens = _totalTokens,
+            SessionTokens = _sessionTokens,
+            RecordsCount = recordsCount
+        };
     }
 
     public Dictionary<string, int> GetProviderBreakdown()
     {
-        return _providerTokens.ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-    }
-
-    public void SaveUsageData()
-    {
-        try
+        List<UsageRecord> snapshot;
+        lock (_recordsLock)
         {
-            lock (_lock)
-            {
-                var data = new TokenUsageData { TotalTokens = _totalTokens, Records = _usageRecords.ToList() };
-                var json = JsonSerializer.Serialize(data, _jsonOptions);
-                File.WriteAllText(_storagePath, json);
-            }
+            snapshot = UsageRecords.ToList();
         }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TokenService] Save failed: {ex.Message}"); }
-    }
 
-    private void LoadUsageData()
-    {
-        try
-        {
-            if (File.Exists(_storagePath))
-            {
-                var json = File.ReadAllText(_storagePath);
-                var data = JsonSerializer.Deserialize<TokenUsageData>(json, _jsonOptions);
-                if (data != null)
-                {
-                    _totalTokens = data.TotalTokens;
-                    foreach (var record in data.Records) _usageRecords.Add(record);
-                }
-            }
-        }
-        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[TokenService] Load failed: {ex.Message}"); }
+        return snapshot
+            .GroupBy(r => r.Provider)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.Tokens));
     }
 }
 
 public class UsageRecord
 {
-    public DateTime Timestamp { get; set; }
+    public string Id { get; set; } = string.Empty;
     public int Tokens { get; set; }
     public string Provider { get; set; } = string.Empty;
-    public string RequestId { get; set; } = string.Empty;
-}
-
-public class TokenUsageData
-{
-    public int TotalTokens { get; set; }
-    public List<UsageRecord> Records { get; set; } = new();
+    public DateTime Timestamp { get; set; }
 }
 
 public class TokenStatistics
 {
     public int TotalTokens { get; set; }
     public int SessionTokens { get; set; }
-    public int TodayTokens { get; set; }
-    public int RecordCount { get; set; }
+    public int RecordsCount { get; set; }
 }
