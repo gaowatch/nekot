@@ -29,7 +29,10 @@ public class UpdateCheckScheduler
             await CheckForUpdateAsync();
         });
 
-        _checkTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(24) };
+        _checkTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromHours(24)
+        };
         _checkTimer.Tick += async (s, e) => await CheckForUpdateAsync();
         _checkTimer.Start();
     }
@@ -37,18 +40,25 @@ public class UpdateCheckScheduler
     public async Task CheckForUpdateAsync()
     {
         var lastCheck = _userSettings.LastUpdateCheckTime;
-        if (lastCheck.HasValue && (DateTime.Now - lastCheck.Value).TotalHours < 24) return;
+        if (lastCheck.HasValue && (DateTime.Now - lastCheck.Value).TotalHours < 24)
+        {
+            return;
+        }
 
         var result = await _versionService.CheckForUpdateAsync();
         _userSettings.LastUpdateCheckTime = DateTime.Now;
 
         if (result.HasUpdate && !IsVersionSkipped(result.LatestVersion?.Version))
+        {
             UpdateAvailable?.Invoke(this, result);
+        }
     }
 
     private bool IsVersionSkipped(string? version)
     {
-        if (string.IsNullOrEmpty(version)) return false;
+        if (string.IsNullOrEmpty(version))
+            return false;
+
         return _userSettings.SkippedVersions.Contains(version);
     }
 

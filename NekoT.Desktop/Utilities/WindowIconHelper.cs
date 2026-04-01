@@ -56,14 +56,21 @@ public static class WindowIconHelper
             return;
 
         IntPtr hwnd = handle.Value;
+
         int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
 
         if (extendedStyle == 0)
             return;
 
         int newStyle = extendedStyle | WS_EX_DLGMODALFRAME;
-        SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
+
+        int result = SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
+
+        if (result == 0)
+            return;
+
         SendMessage(hwnd, WM_SETICON, IntPtr.Zero, IntPtr.Zero);
+
         SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     }
 
@@ -96,13 +103,16 @@ public static class WindowIconHelper
             return;
 
         IntPtr hwnd = handle.Value;
+
         int extendedStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
 
         if (extendedStyle == 0)
             return;
 
         int newStyle = extendedStyle & ~WS_EX_DLGMODALFRAME;
+
         SetWindowLong(hwnd, GWL_EXSTYLE, newStyle);
+
         SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
     }
 }
