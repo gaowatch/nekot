@@ -59,7 +59,9 @@ public class AsyncRelayCommand : ICommand
             aggEx.Handle(ex =>
             {
                 if (ex is OperationCanceledException)
+                {
                     return true;
+                }
                 System.Diagnostics.Debug.WriteLine($"[AsyncRelayCommand] Unhandled exception: {ex.Message}");
                 return true;
             });

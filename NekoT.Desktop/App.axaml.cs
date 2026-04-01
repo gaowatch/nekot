@@ -112,14 +112,17 @@ public partial class App : Application
 
             if (shouldShowDisclaimer)
             {
+                System.Diagnostics.Debug.WriteLine("[App] Showing disclaimer dialog...");
                 var disclaimerDialog = new ComplianceDialog();
                 disclaimerDialog.WindowStartupLocation = Avalonia.Controls.WindowStartupLocation.CenterScreen;
                 desktop.MainWindow = disclaimerDialog;
                 
                 disclaimerDialog.Closed += (s, e) =>
                 {
+                    System.Diagnostics.Debug.WriteLine("[App] Disclaimer dialog closed");
                     if (UserSettingsService.Instance.HasAcceptedDisclaimer)
                     {
+                        System.Diagnostics.Debug.WriteLine("[App] Disclaimer accepted, showing MainWindow");
                         var mainWindow = Services.GetRequiredService<MainWindow>();
                         desktop.MainWindow = mainWindow;
                         mainWindow.Show();
@@ -128,6 +131,7 @@ public partial class App : Application
                     }
                     else
                     {
+                        System.Diagnostics.Debug.WriteLine("[App] Disclaimer rejected, shutting down");
                         desktop.Shutdown();
                     }
                 };
@@ -136,9 +140,14 @@ public partial class App : Application
             }
             else
             {
+                System.Diagnostics.Debug.WriteLine("[App] Creating and showing MainWindow...");
                 var mainWindow = Services.GetRequiredService<MainWindow>();
                 desktop.MainWindow = mainWindow;
+                
+                System.Diagnostics.Debug.WriteLine("[App] Calling mainWindow.Show()");
                 mainWindow.Show();
+                
+                System.Diagnostics.Debug.WriteLine("[App] MainWindow.Show() completed");
                 StartUpdateChecker();
             }
         }
@@ -205,6 +214,8 @@ public partial class App : Application
     {
         try
         {
+            System.Diagnostics.Debug.WriteLine("[App] Application exiting, cleaning up resources...");
+
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 if (desktop.MainWindow?.DataContext is MainViewModel mainViewModel)
@@ -212,10 +223,17 @@ public partial class App : Application
                     var forwardingService = mainViewModel.ForwardingService;
                     if (forwardingService != null && !forwardingService.IsDisposed)
                     {
+                        System.Diagnostics.Debug.WriteLine("[App] Disposing ForwardingServiceViewModel...");
                         forwardingService.Dispose();
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[App] ForwardingService already disposed, skipping");
                     }
                 }
             }
+
+            System.Diagnostics.Debug.WriteLine("[App] Cleanup completed");
         }
         catch (Exception ex)
         {
