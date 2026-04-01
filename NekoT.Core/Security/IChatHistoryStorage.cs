@@ -1,13 +1,9 @@
-using System;
-using System.Collections.Generic;
+namespace NekoT.Core.Contracts;
 
-namespace NekoT.Core.Security;
-
-public interface IChatHistoryStorage : IDisposable
+public interface IChatHistoryStorage
 {
-    void SaveMessages(IEnumerable<ChatMessageData> messages);
-    List<ChatMessageData>? LoadMessages();
+    System.Collections.Generic.List<ChatMessageData> LoadMessages();
+    void SaveMessages(System.Collections.Generic.List<ChatMessageData> messages);
+    void AddMessage(ChatMessageData message);
     void ClearMessages();
-    string ExportDecrypted();
-    string ExportDecryptedJson();
 }
