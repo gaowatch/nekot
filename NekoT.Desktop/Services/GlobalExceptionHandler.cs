@@ -27,6 +27,7 @@ public class GlobalExceptionHandler
     {
         TaskScheduler.UnobservedTaskException += OnTaskException;
         AppDomain.CurrentDomain.UnhandledException += OnDomainException;
+
         LoggerService.Instance.LogInfo("ExceptionHandler", "Early exception handlers initialized (TaskScheduler, AppDomain)");
     }
 
@@ -70,11 +71,13 @@ public class GlobalExceptionHandler
     private void OnTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
         LoggerService.Instance.LogError("Task", "Unobserved task exception", e.Exception);
+
         Dispatcher.UIThread.Post(() =>
         {
             ShowErrorDialog(Res.Exception_BackgroundTaskError, GetUserFriendlyMessage(e.Exception),
                 e.Exception, ErrorSeverity.Warning);
         });
+
         e.SetObserved();
     }
 
@@ -86,8 +89,23 @@ public class GlobalExceptionHandler
         if (e.IsTerminating)
         {
             LoggerService.Instance.LogError("Domain", "Application is terminating", exception);
-            try { CleanupForwardingService(); } catch { }
-            try { SaveCrashLog(exception); } catch { }
+            
+            try
+            {
+                CleanupForwardingService();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                SaveCrashLog(exception);
+            }
+            catch
+            {
+            }
+            
             Task.Delay(100).ContinueWith(_ => Environment.Exit(1));
         }
     }
@@ -119,19 +137,29 @@ public class GlobalExceptionHandler
         {
             var logPath = Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-                "NekoT", "crash.log");
+                "NekoT",
+                "crash.log"
+            );
+            
             var logDir = Path.GetDirectoryName(logPath);
             if (logDir != null && !Directory.Exists(logDir))
+            {
                 Directory.CreateDirectory(logDir);
+            }
+            
             var crashInfo = new StringBuilder();
             crashInfo.AppendLine($"Crash Time: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
             crashInfo.AppendLine($"Exception: {exception?.GetType().FullName}");
             crashInfo.AppendLine($"Message: {exception?.Message}");
             crashInfo.AppendLine($"Stack Trace:");
             crashInfo.AppendLine(exception?.StackTrace);
+            crashInfo.AppendLine();
+            
             File.AppendAllText(logPath, crashInfo.ToString(), System.Text.Encoding.UTF8);
         }
-        catch { }
+        catch
+        {
+        }
     }
 
     private void ShowErrorDialog(string title, string message, Exception? exception, ErrorSeverity severity)
