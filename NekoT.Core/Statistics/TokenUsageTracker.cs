@@ -14,42 +14,19 @@ public class TokenUsageTracker : IDisposable
 
     public event EventHandler<TokenUsageRecordedEventArgs>? TokenUsageRecorded;
 
-    public TokenUsageTracker() { _sessionStartTime = DateTime.Now; }
+    public TokenUsageTracker() => _sessionStartTime = DateTime.Now;
 
     public void RecordUsage(int inputTokens, int outputTokens)
     {
         if (_disposed) throw new ObjectDisposedException(nameof(TokenUsageTracker));
         if (inputTokens < 0 || outputTokens < 0) throw new ArgumentException("Token counts cannot be negative");
-
-        lock (_lock)
-        {
-            _sessionInputTokens += inputTokens;
-            _sessionOutputTokens += outputTokens;
-            _sessionRequestCount++;
-        }
-
-        TokenUsageRecorded?.Invoke(this, new TokenUsageRecordedEventArgs
-        {
-            InputTokens = inputTokens,
-            OutputTokens = outputTokens,
-            TotalInputTokens = _sessionInputTokens,
-            TotalOutputTokens = _sessionOutputTokens,
-            RequestCount = _sessionRequestCount
-        });
+        lock (_lock) { _sessionInputTokens += inputTokens; _sessionOutputTokens += outputTokens; _sessionRequestCount++; }
+        TokenUsageRecorded?.Invoke(this, new TokenUsageRecordedEventArgs { InputTokens = inputTokens, OutputTokens = outputTokens, TotalInputTokens = _sessionInputTokens, TotalOutputTokens = _sessionOutputTokens, RequestCount = _sessionRequestCount });
     }
 
     public SessionStatistics GetSnapshot()
     {
-        lock (_lock)
-        {
-            return new SessionStatistics
-            {
-                InputTokens = _sessionInputTokens,
-                OutputTokens = _sessionOutputTokens,
-                RequestCount = _sessionRequestCount,
-                SessionStartTime = _sessionStartTime
-            };
-        }
+        lock (_lock) { return new SessionStatistics { InputTokens = _sessionInputTokens, OutputTokens = _sessionOutputTokens, RequestCount = _sessionRequestCount, SessionStartTime = _sessionStartTime }; }
     }
 
     public void Reset()
@@ -61,20 +38,5 @@ public class TokenUsageTracker : IDisposable
     public void Dispose() { if (!_disposed) _disposed = true; }
 }
 
-public class TokenUsageRecordedEventArgs : EventArgs
-{
-    public int InputTokens { get; set; }
-    public int OutputTokens { get; set; }
-    public int TotalInputTokens { get; set; }
-    public int TotalOutputTokens { get; set; }
-    public int RequestCount { get; set; }
-}
-
-public class SessionStatistics
-{
-    public int InputTokens { get; set; }
-    public int OutputTokens { get; set; }
-    public int RequestCount { get; set; }
-    public DateTime SessionStartTime { get; set; }
-    public int TotalTokens => InputTokens + OutputTokens;
-}
+public class TokenUsageRecordedEventArgs : EventArgs { public int InputTokens { get; set; } public int OutputTokens { get; set; } public int TotalInputTokens { get; set; } public int TotalOutputTokens { get; set; } public int RequestCount { get; set; } }
+public class SessionStatistics { public int InputTokens { get; set; } public int OutputTokens { get; set; } public int RequestCount { get; set; } public DateTime SessionStartTime { get; set; } public int TotalTokens => InputTokens + OutputTokens; }

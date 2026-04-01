@@ -24,66 +24,21 @@ public class CostEstimator
 
     public decimal? EstimateCost(string model, int promptTokens, int completionTokens)
     {
-        if (!_pricing.TryGetValue(model, out var pricing))
-        {
-            return null;
-        }
-
-        var inputCost = (promptTokens / 1000.0m) * pricing.InputPer1K;
-        var outputCost = (completionTokens / 1000.0m) * pricing.OutputPer1K;
-        return inputCost + outputCost;
+        if (!_pricing.TryGetValue(model, out var pricing)) return null;
+        return (promptTokens / 1000.0m) * pricing.InputPer1K + (completionTokens / 1000.0m) * pricing.OutputPer1K;
     }
 
-    public decimal? EstimateCost(int totalTokens)
-    {
-        return EstimateCost("default", totalTokens / 2, totalTokens - totalTokens / 2);
-    }
-
-    public decimal? EstimateCost(int promptTokens, int completionTokens)
-    {
-        return EstimateCost("default", promptTokens, completionTokens);
-    }
-
-    public bool IsModelSupported(string model)
-    {
-        return _pricing.ContainsKey(model);
-    }
-
-    public IEnumerable<string> GetSupportedModels()
-    {
-        return _pricing.Keys;
-    }
+    public decimal? EstimateCost(int totalTokens) => EstimateCost("default", totalTokens / 2, totalTokens - totalTokens / 2);
+    public decimal? EstimateCost(int promptTokens, int completionTokens) => EstimateCost("default", promptTokens, completionTokens);
+    public bool IsModelSupported(string model) => _pricing.ContainsKey(model);
+    public IEnumerable<string> GetSupportedModels() => _pricing.Keys;
 
     public CostBreakdown? GetCostBreakdown(string model, int promptTokens, int completionTokens)
     {
-        if (!_pricing.TryGetValue(model, out var pricing))
-        {
-            return null;
-        }
-
-        return new CostBreakdown
-        {
-            Model = model,
-            PromptTokens = promptTokens,
-            CompletionTokens = completionTokens,
-            InputCost = Math.Round((promptTokens / 1000.0m) * pricing.InputPer1K, 6),
-            OutputCost = Math.Round((completionTokens / 1000.0m) * pricing.OutputPer1K, 6)
-        };
+        if (!_pricing.TryGetValue(model, out var pricing)) return null;
+        return new CostBreakdown { Model = model, PromptTokens = promptTokens, CompletionTokens = completionTokens, InputCost = Math.Round((promptTokens / 1000.0m) * pricing.InputPer1K, 6), OutputCost = Math.Round((completionTokens / 1000.0m) * pricing.OutputPer1K, 6) };
     }
 }
 
-public class ModelPricing
-{
-    public decimal InputPer1K { get; set; }
-    public decimal OutputPer1K { get; set; }
-}
-
-public class CostBreakdown
-{
-    public string Model { get; set; } = string.Empty;
-    public int PromptTokens { get; set; }
-    public int CompletionTokens { get; set; }
-    public decimal InputCost { get; set; }
-    public decimal OutputCost { get; set; }
-    public decimal TotalCost => InputCost + OutputCost;
-}
+public class ModelPricing { public decimal InputPer1K { get; set; } public decimal OutputPer1K { get; set; } }
+public class CostBreakdown { public string Model { get; set; } = string.Empty; public int PromptTokens { get; set; } public int CompletionTokens { get; set; } public decimal InputCost { get; set; } public decimal OutputCost { get; set; } public decimal TotalCost => InputCost + OutputCost; }
