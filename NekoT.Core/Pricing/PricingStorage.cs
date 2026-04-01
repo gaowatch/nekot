@@ -25,7 +25,7 @@ public class PricingStorage
                     _instance ??= new PricingStorage();
                 }
             }
-            return _instance!;
+            return _instance;
         }
     }
 
