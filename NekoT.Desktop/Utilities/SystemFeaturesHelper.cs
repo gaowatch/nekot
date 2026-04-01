@@ -18,20 +18,10 @@ public static class SystemFeaturesHelper
         {
             using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", true);
             if (key == null) return;
-
-            if (enable)
-            {
-                key.SetValue(AppName, $"\"{AppPath}\"");
-            }
-            else
-            {
-                key.DeleteValue(AppName, false);
-            }
+            if (enable) key.SetValue(AppName, $"\"{AppPath}\"");
+            else key.DeleteValue(AppName, false);
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[SystemFeaturesHelper] SetAutoStart failed: {ex.Message}");
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[SystemFeaturesHelper] SetAutoStart failed: {ex.Message}"); }
     }
 
     public static bool IsAutoStartEnabled()
@@ -40,24 +30,15 @@ public static class SystemFeaturesHelper
         {
             using var key = Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run", false);
             if (key == null) return false;
-            
-            var value = key.GetValue(AppName);
-            return value != null;
+            return key.GetValue(AppName) != null;
         }
-        catch
-        {
-            return false;
-        }
+        catch { return false; }
     }
 
     public static void ApplyStartupSettings()
     {
         var settings = UserSettingsService.Instance;
-        
         var currentAutoStart = IsAutoStartEnabled();
-        if (settings.StartWithWindows != currentAutoStart)
-        {
-            SetAutoStart(settings.StartWithWindows);
-        }
+        if (settings.StartWithWindows != currentAutoStart) SetAutoStart(settings.StartWithWindows);
     }
 }
