@@ -1,4 +1,8 @@
+using System;
+
 namespace NekoT.Desktop.NetworkMonitoring;
+
+public enum AccuracyLevel { Unknown, Precise, Estimated, NotSupported }
 
 public interface ITokenMonitorStrategy
 {
@@ -13,7 +17,7 @@ public interface ITokenMonitorStrategy
 
 public abstract class TokenMonitorStrategyBase : ITokenMonitorStrategy
 {
-    protected int _currentTokens = 0;
+    protected int _currentTokens;
     protected string _currentRequestId = string.Empty;
     public abstract string ProviderName { get; }
     public abstract AccuracyLevel Accuracy { get; }
@@ -27,10 +31,9 @@ public abstract class TokenMonitorStrategyBase : ITokenMonitorStrategy
 public class PreciseTokenMonitorStrategy : TokenMonitorStrategyBase
 {
     private readonly string _providerName;
-    public PreciseTokenMonitorStrategy(string providerName) { _providerName = providerName; }
+    public PreciseTokenMonitorStrategy(string providerName) => _providerName = providerName;
     public override string ProviderName => _providerName;
     public override AccuracyLevel Accuracy => AccuracyLevel.Precise;
-    public override void OnTokenDetected(TokenExtractedEventArgs e) { base.OnTokenDetected(e); System.Diagnostics.Debug.WriteLine($"[PreciseStrategy] {_providerName}: {e.Tokens} tokens"); }
 }
 
 public class EstimatedTokenMonitorStrategy : TokenMonitorStrategyBase
