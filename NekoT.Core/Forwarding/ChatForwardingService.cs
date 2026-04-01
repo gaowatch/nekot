@@ -18,7 +18,9 @@ public class ChatForwardingService
     private readonly HttpClient _httpClient;
     private readonly WhitelistValidator _whitelistValidator;
 
-    public ChatForwardingService() : this(null, null) { }
+    public ChatForwardingService() : this(null, null)
+    {
+    }
 
     public ChatForwardingService(HttpClient? httpClient, WhitelistValidator? whitelistValidator = null)
     {
@@ -26,11 +28,33 @@ public class ChatForwardingService
         _whitelistValidator = whitelistValidator ?? new WhitelistValidator();
     }
 
-    public Message[] BuildMessages(List<ChatMessage> messages) => messages.Select(msg => new Message { Role = msg.Role, Content = msg.Content }).ToArray();
-
-    public ChatCompletionRequest CreateRequest(string model, string apiKey, List<ChatMessage> messages, string? customUrl = null, double temperature = 0.7, int? maxTokens = null)
+    public Message[] BuildMessages(List<ChatMessage> messages)
     {
-        return new ChatCompletionRequest { Model = model, ApiKey = apiKey, Url = customUrl, Messages = BuildMessages(messages), Temperature = temperature, MaxTokens = maxTokens, Stream = false };
+        return messages.Select(msg => new Message
+        {
+            Role = msg.Role,
+            Content = msg.Content
+        }).ToArray();
+    }
+
+    public ChatCompletionRequest CreateRequest(
+        string model,
+        string apiKey,
+        List<ChatMessage> messages,
+        string? customUrl = null,
+        double temperature = 0.7,
+        int? maxTokens = null)
+    {
+        return new ChatCompletionRequest
+        {
+            Model = model,
+            ApiKey = apiKey,
+            Url = customUrl,
+            Messages = BuildMessages(messages),
+            Temperature = temperature,
+            MaxTokens = maxTokens,
+            Stream = false
+        };
     }
 
     public string ExtractContent(string jsonResponse)
@@ -39,15 +63,23 @@ public class ChatForwardingService
         {
             using var doc = JsonDocument.Parse(jsonResponse);
             var root = doc.RootElement;
+
             if (root.TryGetProperty("choices", out var choices) && choices.GetArrayLength() > 0)
             {
                 var firstChoice = choices[0];
-                if (firstChoice.TryGetProperty("message", out var message) && message.TryGetProperty("content", out var content))
+                if (firstChoice.TryGetProperty("message", out var message) &&
+                    message.TryGetProperty("content", out var content))
+                {
                     return content.GetString() ?? string.Empty;
+                }
             }
+
             return string.Empty;
         }
-        catch { return string.Empty; }
+        catch
+        {
+            return string.Empty;
+        }
     }
 
     public Usage? ExtractUsage(string jsonResponse)
@@ -56,34 +88,65 @@ public class ChatForwardingService
         {
             using var doc = JsonDocument.Parse(jsonResponse);
             var root = doc.RootElement;
+
             if (root.TryGetProperty("usage", out var usage))
-                return new Usage { PromptTokens = usage.TryGetProperty("prompt_tokens", out var pt) ? pt.GetInt32() : 0, CompletionTokens = usage.TryGetProperty("completion_tokens", out var ct) ? ct.GetInt32() : 0, TotalTokens = usage.TryGetProperty("total_tokens", out var tt) ? tt.GetInt32() : 0 };
+            {
+                return new Usage
+                {
+                    PromptTokens = usage.TryGetProperty("prompt_tokens", out var pt) ? pt.GetInt32() : 0,
+                    CompletionTokens = usage.TryGetProperty("completion_tokens", out var ct) ? ct.GetInt32() : 0,
+                    TotalTokens = usage.TryGetProperty("total_tokens", out var tt) ? tt.GetInt32() : 0
+                };
+            }
+
             return null;
         }
-        catch { return null; }
+        catch
+        {
+            return null;
+        }
     }
 
     public async Task<ChatResponse> SendMessageAsync(ChatCompletionRequest request)
     {
         var targetUrl = UrlResolver.ResolveUrl(request);
+        
         if (!_whitelistValidator.IsWhitelisted(targetUrl))
+        {
             throw new UnauthorizedAccessException($"Endpoint not whitelisted: {targetUrl}");
+        }
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, targetUrl);
-        if (!string.IsNullOrEmpty(request.ApiKey))
-            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.ApiKey);
 
-        var payload = new { model = request.Model, messages = request.Messages, temperature = request.Temperature, max_tokens = request.MaxTokens, stream = false };
+        if (!string.IsNullOrEmpty(request.ApiKey))
+        {
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", request.ApiKey);
+        }
+
+        var payload = new
+        {
+            model = request.Model,
+            messages = request.Messages,
+            temperature = request.Temperature,
+            max_tokens = request.MaxTokens,
+            stream = false
+        };
+
         httpRequest.Content = JsonContent.Create(payload);
 
         var response = await _httpClient.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
-        string jsonResponse;
-        try { response.EnsureSuccessStatusCode(); jsonResponse = await response.Content.ReadAsStringAsync(); }
-        catch (HttpRequestException) { jsonResponse = await response.Content.ReadAsStringAsync(); throw; }
-
+        response.EnsureSuccessStatusCode();
+        
+        var jsonResponse = await response.Content.ReadAsStringAsync();
         var content = ExtractContent(jsonResponse);
         var usage = ExtractUsage(jsonResponse);
-        return new ChatResponse { Content = content, Usage = usage, RawResponse = jsonResponse };
+
+        return new ChatResponse
+        {
+            Content = content,
+            Usage = usage,
+            RawResponse = jsonResponse
+        };
     }
 }
 
@@ -91,7 +154,12 @@ public class ChatMessage
 {
     public string Role { get; }
     public string Content { get; }
-    public ChatMessage(string role, string content) { Role = role; Content = content; }
+
+    public ChatMessage(string role, string content)
+    {
+        Role = role;
+        Content = content;
+    }
 }
 
 public class ChatMessageDto
