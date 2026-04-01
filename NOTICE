@@ -1,0 +1,33 @@
+NekoT Token Monitor
+Copyright 2024-2026 NekoT Contributors
+
+This product includes software developed by the NekoT Contributors.
+
+---
+
+TRADEMARK NOTICE
+
+"NekoT" and the NekoT logo are trademarks of the NekoT project.
+The trademarks may not be used to endorse or promote products derived
+from this software without specific prior written permission.
+
+---
+
+OPEN SOURCE LICENSE
+
+This software is licensed under the Apache License, Version 2.0.
+See the LICENSE file for the full license text.
+
+---
+
+THIRD-PARTY COMPONENTS
+
+This software includes the following third-party components:
+
+- Avalonia UI (MIT License)
+- Microsoft WebView2 (MIT License)
+- Tiktoken (MIT License)
+- SQLite (Public Domain)
+- SharpCompress (MIT License)
+
+Each third-party component is licensed under its respective license terms.
