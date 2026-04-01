@@ -6,74 +6,116 @@ using NekoT.Core.Contracts;
 namespace NekoT.Core.TokenManagement;
 
 public class TokenService : ITokenService
- {
+{
     private int _totalTokens;
     private int _sessionTokens;
+
     private readonly object _recordsLock = new();
+
     private readonly HashSet<string> _processedRequestIds = new();
-    private readonly List<UsageRecord> _records = new();
-    public ReadOnlyObservableCollection<UsageRecord> Records { get; }
+    private readonly Queue<string> _requestIdQueue = new();
+
+    public TokenService()
+    {
+        UsageRecords = new ObservableCollection<UsageRecord>();
+    }
 
     public int TotalTokens => _totalTokens;
     public int SessionTokens => _sessionTokens;
+    public ObservableCollection<UsageRecord> UsageRecords { get; }
 
-    public void AddTokens(int tokens, int promptTokens, int completionTokens)
+    public void RecordUsage(int tokens, string? provider = null, string? requestId = null)
     {
-        Interlocked.Increment(ref _totalTokens, tokens);
-        Interlocked.Increment(ref _sessionTokens, tokens);
+        if (!string.IsNullOrEmpty(requestId))
+        {
+            lock (_recordsLock)
+            {
+                if (_processedRequestIds.Contains(requestId))
+                    return;
+
+                while (_requestIdQueue.Count >= AppConstants.TokenManagement.DeduplicationCacheSize)
+                {
+                    var oldestId = _requestIdQueue.Dequeue();
+                    _processedRequestIds.Remove(oldestId);
+                }
+
+                _processedRequestIds.Add(requestId);
+                _requestIdQueue.Enqueue(requestId);
+            }
+        }
+
+        Interlocked.Add(ref _totalTokens, tokens);
+        Interlocked.Add(ref _sessionTokens, tokens);
+
+        var record = new UsageRecord
+        {
+            Id = requestId ?? Guid.NewGuid().ToString(),
+            Tokens = tokens,
+            Provider = provider ?? "Unknown",
+            Timestamp = DateTime.Now
+        };
 
         lock (_recordsLock)
         {
-            var record = new UsageRecord
+            while (UsageRecords.Count >= AppConstants.TokenManagement.MaxRecordCount)
             {
-                Id = Guid.NewGuid().ToString(),
-                TotalTokens = tokens,
-                PromptTokens = promptTokens,
-                CompletionTokens = completionTokens,
-                Timestamp = DateTime.Now
-            };
-            _records.Add(record);
+                UsageRecords.RemoveAt(UsageRecords.Count - 1);
+            }
+
+            UsageRecords.Insert(0, record);
         }
     }
 
     public void ResetSession()
     {
-        Interlocked.Exchange(ref _sessionTokens, ref _);
-        lock (_recordsLock)
+        int originalValue;
+        do
         {
-            _records.Clear();
-        }
+            originalValue = _sessionTokens;
+        } while (Interlocked.CompareExchange(ref _sessionTokens, 0, originalValue) != originalValue);
     }
 
-    public SessionStatistics GetSnapshot()
+    public TokenStatistics GetStatistics()
     {
+        int recordsCount;
         lock (_recordsLock)
         {
-            return new SessionStatistics
-            {
-                InputTokens = _records.Sum(r => r.PromptTokens),
-                OutputTokens = _records.Sum(r => r.CompletionTokens),
-                RequestCount = _records.Count,
-                SessionStartTime = DateTime.Now
-            };
+            recordsCount = UsageRecords.Count;
         }
+
+        return new TokenStatistics
+        {
+            TotalTokens = _totalTokens,
+            SessionTokens = _sessionTokens,
+            RecordsCount = recordsCount
+        };
+    }
+
+    public Dictionary<string, int> GetProviderBreakdown()
+    {
+        List<UsageRecord> snapshot;
+        lock (_recordsLock)
+        {
+            snapshot = UsageRecords.ToList();
+        }
+
+        return snapshot
+            .GroupBy(r => r.Provider)
+            .ToDictionary(g => g.Key, g => g.Sum(r => r.Tokens));
     }
 }
 
-public class TokenUsageRecordedEventArgs : EventArgs
- {
-    public int InputTokens { get; set; }
-    public int OutputTokens { get; set; }
-    public int TotalInputTokens { get; set; }
-    public int TotalOutputTokens { get; set; }
-    public int RequestCount { get; set; }
+public class UsageRecord
+{
+    public string Id { get; set; } = string.Empty;
+    public int Tokens { get; set; }
+    public string Provider { get; set; } = string.Empty;
+    public DateTime Timestamp { get; set; }
 }
 
-public class SessionStatistics
- {
-    public int InputTokens { get; set; }
-    public int OutputTokens { get; set; }
-    public int RequestCount { get; set; }
-    public DateTime SessionStartTime { get; set; }
-    public int TotalTokens => InputTokens + OutputTokens;
+public class TokenStatistics
+{
+    public int TotalTokens { get; set; }
+    public int SessionTokens { get; set; }
+    public int RecordsCount { get; set; }
 }
