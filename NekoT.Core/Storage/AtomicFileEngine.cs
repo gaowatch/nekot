@@ -18,36 +18,92 @@ public class AtomicFileEngine : IAtomicFileEngine
 
     public AtomicFileEngine(string filePath)
     {
-        if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentException("文件路径不能为空", nameof(filePath));
-        try { Path.GetFullPath(filePath); }
-        catch { throw new ArgumentException($"无效的文件路径: {filePath}", nameof(filePath)); }
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            throw new ArgumentException("文件路径不能为空", nameof(filePath));
+        }
+
+        try
+        {
+            Path.GetFullPath(filePath);
+        }
+        catch
+        {
+            throw new ArgumentException($"无效的文件路径: {filePath}", nameof(filePath));
+        }
+
         _filePath = filePath;
         _backupPath = filePath + ".bak";
         _tempPath = filePath + ".tmp";
-        _jsonOptions = new JsonSerializerOptions { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+
+        _jsonOptions = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+        };
     }
 
     public async Task<bool> WriteAsync<T>(T data, CancellationToken ct = default)
     {
-        if (ct.IsCancellationRequested) return false;
+        if (ct.IsCancellationRequested)
+        {
+            return false;
+        }
+
         return await Task.Run(() =>
         {
             lock (_lock)
             {
                 try
                 {
-                    if (ct.IsCancellationRequested) return false;
-                    if (File.Exists(_filePath)) File.Copy(_filePath, _backupPath, overwrite: true);
-                    var wrapper = new DataWrapper<T> { Data = data, Checksum = ComputeChecksum(data), Timestamp = DateTime.UtcNow, Version = 1 };
+                    if (ct.IsCancellationRequested)
+                    {
+                        return false;
+                    }
+
+                    if (File.Exists(_filePath))
+                    {
+                        File.Copy(_filePath, _backupPath, overwrite: true);
+                    }
+
+                    var wrapper = new DataWrapper<T>
+                    {
+                        Data = data,
+                        Checksum = ComputeChecksum(data),
+                        Timestamp = DateTime.UtcNow,
+                        Version = 1
+                    };
+
                     var json = JsonSerializer.Serialize(wrapper, _jsonOptions);
+
                     File.WriteAllText(_tempPath, json, System.Text.Encoding.UTF8);
-                    if (ct.IsCancellationRequested) { TryDeleteFile(_tempPath); return false; }
-                    if (File.Exists(_filePath)) File.Replace(_tempPath, _filePath, _backupPath);
-                    else File.Move(_tempPath, _filePath);
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        TryDeleteFile(_tempPath);
+                        return false;
+                    }
+
+                    if (File.Exists(_filePath))
+                    {
+                        File.Replace(_tempPath, _filePath, _backupPath);
+                    }
+                    else
+                    {
+                        File.Move(_tempPath, _filePath);
+                    }
+
                     return true;
                 }
-                catch (OperationCanceledException) { return false; }
-                catch { TryDeleteFile(_tempPath); return false; }
+                catch (OperationCanceledException)
+                {
+                    return false;
+                }
+                catch (Exception)
+                {
+                    TryDeleteFile(_tempPath);
+                    return false;
+                }
             }
         }, ct);
     }
@@ -55,33 +111,69 @@ public class AtomicFileEngine : IAtomicFileEngine
     public async Task<T?> ReadAsync<T>(CancellationToken ct = default)
     {
         TryDeleteFile(_tempPath);
+
         var result = await TryReadFileAsync<T>(_filePath, ct);
-        if (result != null) return result;
-        return await TryReadFileAsync<T>(_backupPath, ct);
+        if (result != null)
+        {
+            return result;
+        }
+
+        result = await TryReadFileAsync<T>(_backupPath, ct);
+        return result;
     }
 
-    public Task<bool> ExistsAsync() => Task.FromResult(File.Exists(_filePath) || File.Exists(_backupPath));
+    public Task<bool> ExistsAsync()
+    {
+        return Task.FromResult(File.Exists(_filePath) || File.Exists(_backupPath));
+    }
 
     public async Task<bool> BackupAsync()
     {
-        if (!File.Exists(_filePath)) return false;
-        try { await Task.Run(() => File.Copy(_filePath, _backupPath, overwrite: true)); return true; }
-        catch { return false; }
+        if (!File.Exists(_filePath))
+        {
+            return false;
+        }
+
+        try
+        {
+            await Task.Run(() => File.Copy(_filePath, _backupPath, overwrite: true));
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private async Task<T?> TryReadFileAsync<T>(string path, CancellationToken ct)
     {
-        if (!File.Exists(path)) return default;
+        if (!File.Exists(path))
+        {
+            return default;
+        }
+
         try
         {
             var json = await File.ReadAllTextAsync(path, ct);
             var wrapper = JsonSerializer.Deserialize<DataWrapper<T>>(json, _jsonOptions);
-            if (wrapper == null || wrapper.Data == null) return default;
+
+            if (wrapper == null || wrapper.Data == null)
+            {
+                return default;
+            }
+
             var expectedChecksum = ComputeChecksum(wrapper.Data);
-            if (wrapper.Checksum != expectedChecksum) return default;
+            if (wrapper.Checksum != expectedChecksum)
+            {
+                return default;
+            }
+
             return wrapper.Data;
         }
-        catch { return default; }
+        catch
+        {
+            return default;
+        }
     }
 
     private static string ComputeChecksum<T>(T data)
@@ -92,7 +184,19 @@ public class AtomicFileEngine : IAtomicFileEngine
         return Convert.ToBase64String(hash);
     }
 
-    private static void TryDeleteFile(string path) { try { if (File.Exists(path)) File.Delete(path); } catch { } }
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+        }
+        catch
+        {
+        }
+    }
 }
 
 internal class DataWrapper<T>

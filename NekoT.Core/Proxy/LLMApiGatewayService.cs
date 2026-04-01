@@ -118,7 +118,7 @@ public class LLMApiGatewayService : IAsyncDisposable, IDisposable
         _statsLoopTask = Task.Run(async () => await RunStatsLoopAsync(_cts.Token));
 
         Log($"[Gateway] HTTP Gateway started: {GatewayBaseUrl}");
-        Console.WriteLine("[Gateway] Usage: http://127.0.0.1:{0}/{{vendor}}/v1/chat/completions", _gatewayPort);
+        Console.WriteLine("[Gateway] Usage: http://127.0.0.1:{0}/{vendor}/v1/chat/completions", _gatewayPort);
         Console.WriteLine("[Gateway] Supported vendors: " + string.Join(", ", _llmVendorMapping.Keys));
         Log($"[Gateway] Stats: {StatsUrl}");
     }
