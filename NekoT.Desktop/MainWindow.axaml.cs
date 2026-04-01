@@ -32,29 +32,15 @@ public partial class MainWindow : Window
     private TrayIcon? _trayIcon;
     private bool _isClosing;
 
-    private static readonly string LogFile = Path.Combine(
-        AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
-
+    private static readonly string LogFile = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "wv2_debug.log");
     private static readonly object LogLock = new object();
 
     private static void Log(string msg)
     {
         var line = $"[{DateTime.Now:HH:mm:ss.fff}] {msg}";
-        try
-        {
-            lock (LogLock)
-            {
-                File.AppendAllText(LogFile, line + Environment.NewLine, System.Text.Encoding.UTF8);
-            }
-        }
-        catch (IOException ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[LogError] IO: {ex.Message}");
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[LogError] Access: {ex.Message}");
-        }
+        try { lock (LogLock) { File.AppendAllText(LogFile, line + Environment.NewLine, System.Text.Encoding.UTF8); } }
+        catch (IOException ex) { System.Diagnostics.Debug.WriteLine($"[LogError] IO: {ex.Message}"); }
+        catch (UnauthorizedAccessException ex) { System.Diagnostics.Debug.WriteLine($"[LogError] Access: {ex.Message}"); }
     }
 
     public MainWindow() : this(App.Services.GetRequiredService<MainViewModel>()) { }
@@ -75,36 +61,16 @@ public partial class MainWindow : Window
     }
 
     private void OnTabsCollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) { }
-
-    private void OnMainWindowLoaded(object? sender, RoutedEventArgs e)
-    {
-        Log("[Window] MainWindow loaded event triggered");
-    }
+    private void OnMainWindowLoaded(object? sender, RoutedEventArgs e) { Log("[Window] MainWindow loaded event triggered"); }
 
     private void ApplyStartupSettings()
     {
         Log("[Window] ApplyStartupSettings called");
         var settings = UserSettingsService.Instance;
         Log($"[Window] Current WindowState: {WindowState}, StartMinimized: {settings.StartMinimized}, StartMaximized: {settings.StartMaximized}");
-
-        if (settings.StartMinimized)
-        {
-            Log("[Window] Starting minimized, skipping window show");
-        }
-        else if (settings.StartMaximized)
-        {
-            Log("[Window] Starting maximized");
-            Dispatcher.UIThread.Post(() =>
-            {
-                WindowState = WindowState.Maximized;
-                EnsureWindowVisible();
-            }, DispatcherPriority.Input);
-        }
-        else
-        {
-            Log("[Window] Starting normal, ensuring window visible");
-            Dispatcher.UIThread.Post(() => { EnsureWindowVisible(); }, DispatcherPriority.Input);
-        }
+        if (settings.StartMinimized) { Log("[Window] Starting minimized, skipping window show"); }
+        else if (settings.StartMaximized) { Log("[Window] Starting maximized"); Dispatcher.UIThread.Post(() => { WindowState = WindowState.Maximized; EnsureWindowVisible(); }, DispatcherPriority.Input); }
+        else { Log("[Window] Starting normal, ensuring window visible"); Dispatcher.UIThread.Post(() => { EnsureWindowVisible(); }, DispatcherPriority.Input); }
         SystemFeaturesHelper.ApplyStartupSettings();
     }
 
@@ -114,55 +80,34 @@ public partial class MainWindow : Window
         {
             Log("[Window] EnsureWindowVisible called");
             EnsureWindowOnPrimaryScreen();
-            if (WindowState == WindowState.Minimized)
-            {
-                Log("[Window] Changing WindowState from Minimized to Normal");
-                WindowState = WindowState.Normal;
-            }
-            if (!IsVisible)
-            {
-                Log("[Window] Window not visible, calling Show()");
-                Show();
-            }
+            if (WindowState == WindowState.Minimized) { Log("[Window] Changing WindowState from Minimized to Normal"); WindowState = WindowState.Normal; }
+            if (!IsVisible) { Log("[Window] Window not visible, calling Show()"); Show(); }
             Log("[Window] Activating window");
             Activate();
-            Topmost = true;
-            Topmost = false;
+            Topmost = true; Topmost = false;
             Log("[Window] EnsureWindowVisible completed successfully");
         }
-        catch (Exception ex)
-        {
-            Log($"[Window] Error in EnsureWindowVisible: {ex.Message}");
-        }
+        catch (Exception ex) { Log($"[Window] Error in EnsureWindowVisible: {ex.Message}"); }
     }
 
     private void EnsureWindowOnPrimaryScreen()
     {
         try
         {
-            if (WindowState == WindowState.Maximized)
-            {
-                Log("[Window] Window is maximized, skipping position adjustment");
-                return;
-            }
+            if (WindowState == WindowState.Maximized) { Log("[Window] Window is maximized, skipping position adjustment"); return; }
             if (Screens.Primary != null)
             {
                 var primaryScreen = Screens.Primary;
                 var workArea = primaryScreen.WorkingArea;
-                var windowWidth = Width;
-                var windowHeight = Height;
+                var windowWidth = Width; var windowHeight = Height;
                 if (windowWidth > workArea.Width * 0.9) windowWidth = workArea.Width * 0.9;
                 if (windowHeight > workArea.Height * 0.9) windowHeight = workArea.Height * 0.9;
                 Position = new PixelPoint((int)(workArea.X + (workArea.Width - windowWidth) / 2), (int)(workArea.Y + (workArea.Height - windowHeight) / 2));
-                Width = windowWidth;
-                Height = windowHeight;
-                Log($"[Window] Window positioned on primary screen: {Position}, size: {Width}x{Height}");
+                Width = windowWidth; Height = windowHeight;
+                Log($"[Window] Window positioned on primary screen: {Position}, Size: {Width}x{Height}");
             }
         }
-        catch (Exception ex)
-        {
-            Log($"[Window] Error positioning window: {ex.Message}");
-        }
+        catch (Exception ex) { Log($"[Window] EnsureWindowOnPrimaryScreen error: {ex.Message}"); }
     }
 
     private void SetupTrayIcon()
@@ -181,32 +126,15 @@ public partial class MainWindow : Window
             _trayIcon.Menu.Items.Add(new NativeMenuItemSeparator());
             _trayIcon.Menu.Items.Add(exitMenuItem);
             _trayIcon.ToolTipText = "NekoT - AI Token Monitor";
-            using (var stream = AssetLoader.Open(new Uri("avares://NekoT.Desktop/Assets/nekotlogo.png")))
-            {
-                _trayIcon.Icon = new WindowIcon(stream);
-            }
+            using (var stream = AssetLoader.Open(new Uri("avares://NekoT.Desktop/Assets/nekotlogo.png"))) { _trayIcon.Icon = new WindowIcon(stream); }
             _trayIcon.Clicked += (s, e) => ShowMainWindow();
         }
-        catch (Exception ex)
-        {
-            Log($"[INIT] Failed to setup tray icon: {ex.Message}");
-        }
+        catch (Exception ex) { Log($"[INIT] Failed to setup tray icon: {ex.Message}"); }
     }
 
-    private void ShowMainWindow()
-    {
-        Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); });
-    }
+    private void ShowMainWindow() { Dispatcher.UIThread.Post(() => { Show(); WindowState = WindowState.Normal; Activate(); }); }
 
-    private void ShutdownApp()
-    {
-        _isClosing = true;
-        _ = CleanupBeforeExitAsync();
-        if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-        {
-            desktop.Shutdown();
-        }
-    }
+    private void ShutdownApp() { _isClosing = true; _ = CleanupBeforeExitAsync(); if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop) desktop.Shutdown(); }
 
     private async Task CleanupBeforeExitAsync()
     {
@@ -224,32 +152,7 @@ public partial class MainWindow : Window
             }
             System.Diagnostics.Debug.WriteLine("[MainWindow] Cleanup completed");
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainWindow] Cleanup error: {ex.Message}");
-        }
-    }
-
-    private void CleanupBeforeExit()
-    {
-        try
-        {
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleaning up before exit...");
-            if (DataContext is MainViewModel mainViewModel)
-            {
-                var forwardingService = mainViewModel.ForwardingService;
-                if (forwardingService != null && !forwardingService.IsDisposed)
-                {
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] Disposing ForwardingServiceViewModel...");
-                    forwardingService.Dispose();
-                }
-            }
-            System.Diagnostics.Debug.WriteLine("[MainWindow] Cleanup completed");
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainWindow] Cleanup error: {ex.Message}");
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainWindow] Cleanup error: {ex.Message}"); }
     }
 
     private void StartGlowAnimation()
@@ -315,39 +218,15 @@ public partial class MainWindow : Window
 
     private int GetActiveTaskCount()
     {
-        try
-        {
-            if (DataContext is MainViewModel mainViewModel)
-            {
-                var forwardingService = mainViewModel.ForwardingService;
-                if (forwardingService != null && forwardingService.CurrentConnectionCount > 0)
-                {
-                    return forwardingService.CurrentConnectionCount;
-                }
-            }
-        }
+        try { if (DataContext is MainViewModel mainViewModel) { var forwardingService = mainViewModel.ForwardingService; if (forwardingService != null && forwardingService.CurrentConnectionCount > 0) return forwardingService.CurrentConnectionCount; } }
         catch { }
         return 0;
     }
 
     private void SaveTokenUsageData()
     {
-        try
-        {
-            if (DataContext is MainViewModel mainViewModel)
-            {
-                var forwardingService = mainViewModel.ForwardingService;
-                if (forwardingService != null && !forwardingService.IsDisposed)
-                {
-                    System.Diagnostics.Debug.WriteLine("[MainWindow] Saving token usage data before hide...");
-                    forwardingService.SaveTokenUsageSync();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"[MainWindow] Save token usage error: {ex.Message}");
-        }
+        try { if (DataContext is MainViewModel mainViewModel) { var forwardingService = mainViewModel.ForwardingService; if (forwardingService != null && !forwardingService.IsDisposed) { System.Diagnostics.Debug.WriteLine("[MainWindow] Saving token usage data before hide..."); forwardingService.SaveTokenUsageSync(); } } }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"[MainWindow] Save token usage error: {ex.Message}"); }
     }
 
     private void OnSettingsClick(object? sender, RoutedEventArgs e)
@@ -360,55 +239,14 @@ public partial class MainWindow : Window
                 _settingsWindow.SetMainViewModel(_viewModel);
                 _settingsWindow.Show(this);
             }
-            else
-            {
-                if (_settingsWindow.WindowState == WindowState.Minimized)
-                {
-                    _settingsWindow.WindowState = WindowState.Normal;
-                }
-                _settingsWindow.Activate();
-                _settingsWindow.Focus();
-            }
+            else { if (_settingsWindow.WindowState == WindowState.Minimized) _settingsWindow.WindowState = WindowState.Normal; _settingsWindow.Activate(); _settingsWindow.Focus(); }
         }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Failed to open SettingsWindow: {ex}");
-        }
+        catch (Exception ex) { System.Diagnostics.Debug.WriteLine($"Failed to open SettingsWindow: {ex}"); }
     }
 
-    private void OnToolbarPointerPressed(object? sender, PointerPressedEventArgs e)
-    {
-        if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
-        {
-            BeginMoveDrag(e);
-        }
-    }
-
-    private void OnLogoButtonClick(object? sender, RoutedEventArgs e)
-    {
-        _viewModel.ToggleLogoMode();
-    }
-
-    private void OnTabScrollViewerPointerWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (sender is ScrollViewer scrollViewer)
-        {
-            e.Handled = true;
-            var delta = e.Delta.Y;
-            scrollViewer.Offset = scrollViewer.Offset.WithX(scrollViewer.Offset.X - delta * 50);
-        }
-    }
-
-    private void OnTabScrollViewerSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        if (sender is ScrollViewer scrollViewer && _viewModel != null)
-        {
-            _viewModel.UpdateAvailableWidth(e.NewSize.Width);
-        }
-    }
-
-    protected override void OnSizeChanged(SizeChangedEventArgs e)
-    {
-        base.OnSizeChanged(e);
-    }
+    private void OnToolbarPointerPressed(object? sender, PointerPressedEventArgs e) { if (e.GetCurrentPoint(this).Properties.IsLeftButtonPressed) BeginMoveDrag(e); }
+    private void OnLogoButtonClick(object? sender, RoutedEventArgs e) { _viewModel.ToggleLogoMode(); }
+    private void OnTabScrollViewerPointerWheelChanged(object? sender, PointerWheelEventArgs e) { if (sender is ScrollViewer scrollViewer) { e.Handled = true; scrollViewer.Offset = scrollViewer.Offset.WithX(scrollViewer.Offset.X - e.Delta.Y * 50); } }
+    private void OnTabScrollViewerSizeChanged(object? sender, SizeChangedEventArgs e) { if (sender is ScrollViewer scrollViewer && _viewModel != null) _viewModel.UpdateAvailableWidth(e.NewSize.Width); }
+    protected override void OnSizeChanged(SizeChangedEventArgs e) { base.OnSizeChanged(e); }
 }
