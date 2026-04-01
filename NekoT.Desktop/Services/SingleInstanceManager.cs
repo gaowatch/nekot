@@ -1,69 +1,42 @@
 using System;
 using System.Threading;
-using Microsoft.Win32;
 
 namespace NekoT.Desktop.Services;
 
-public class SingleInstanceManager : IDisposable
+public sealed class SingleInstanceManager : IDisposable
 {
-    private static SingleInstanceManager? _instance;
-    private static readonly object _lock = new();
-    private Mutex? _mutex;
+    private readonly Mutex? _mutex;
+    private readonly bool _isFirstInstance;
+    private readonly string _mutexName;
     private bool _disposed;
+    public bool IsFirstInstance => _isFirstInstance;
+    public string MutexName => _mutexName;
 
-    public static SingleInstanceManager Instance
+    public SingleInstanceManager(string mutexName)
     {
-        get
-        {
-            if (_instance == null)
-            {
-                lock (_lock)
-                {
-                    _instance ??= new SingleInstanceManager();
-                }
-            }
-            return _instance;
-        }
-    }
-
-    private SingleInstanceManager()
-    {
-    }
-
-    public bool IsFirstInstance { get; private set; }
-
-    public bool TryAcquireMutex(string mutexName)
-    {
-        _mutex = new Mutex(true, mutexName, out bool createdNew);
-        IsFirstInstance = createdNew;
-        return createdNew;
-    }
-
-    public void ReleaseMutex()
-    {
-        if (_mutex != null)
-        {
-            try
-            {
-                _mutex.ReleaseMutex();
-            }
-            catch (ApplicationException)
-            {
-            }
-        }
+        if (string.IsNullOrWhiteSpace(mutexName)) throw new ArgumentException("Mutex name cannot be null or empty", nameof(mutexName));
+        _mutexName = mutexName;
+        _mutex = new Mutex(true, _mutexName, out _isFirstInstance);
     }
 
     public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
-
-        ReleaseMutex();
-
-        if (_mutex != null)
+        if (_isFirstInstance && _mutex != null)
         {
-            _mutex.Dispose();
-            _mutex = null;
+            try { _mutex.ReleaseMutex(); } catch { }
+            finally { _mutex.Dispose(); }
         }
+        GC.SuppressFinalize(this);
     }
+
+    ~SingleInstanceManager() => Dispose();
+}
+
+public static class SingleInstanceGuard
+{
+    private const string SingleInstanceGuid = "8B8D8D90-1234-5678-ABCD-123456789ABC";
+    private static readonly string AppMutexName = $@"Global\NekoT_SingleInstance_{SingleInstanceGuid}";
+    public static SingleInstanceManager CreateManager() => new SingleInstanceManager(AppMutexName);
 }
